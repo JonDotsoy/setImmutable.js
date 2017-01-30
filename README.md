@@ -110,7 +110,7 @@ set(object, '[0].people.[1].firstName', 'Lucky', customClone)
 ```
 
 
-## SetImmutable with Redux
+## SetImmutable with [Redux][redux]
 
 **With SetImmutable:**
 
@@ -140,6 +140,8 @@ function Reducer (state = initialState, action) {
               ...state.people[index],
               firstName: action.firstName
             }
+          } else {
+            return person
           }
         })
       }
@@ -152,4 +154,4 @@ function Reducer (state = initialState, action) {
 
 
 [lodash.set]: https://lodash.com/docs#set "_.set(object, path, value)"
-
+[redux]: http://redux.js.org/ "Redux is a predictable state container for JavaScript apps."
