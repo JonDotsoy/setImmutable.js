@@ -1,0 +1,25 @@
+{
+  "name": "setimmutable",
+  "title": "SetImmutable",
+  "version": "0.1.0",
+  "description": "An alternative to lodash.set when your object necessary working with immutable objects.",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "keywords": [
+    "setimmutable",
+    "lodash-modularized"
+  ],
+  "author": "Jonathan Delgado <hi@jon.soy>",
+  "license": "MIT",
+  "dependencies": {
+    "lodash.setwith": "^4.3.2"
+  },
+  "devDependencies": {
+    "debug": "^2.6.0",
+    "deepfreeze": "^2.0.0",
+    "expect.js": "^0.3.1",
+    "lodash.set": "^4.3.2"
+  }
+}
