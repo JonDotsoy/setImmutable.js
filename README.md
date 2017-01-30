@@ -106,8 +106,49 @@ function customClone (objValue, srcValue) {
 }
 
 set(object, '[0].people.[1].firstName', 'Lucky', customClone)
-// => [ { 'people': [ Person { 'firstName': 'Lucky' } ] } ]
+// => [ { 'people': [..., Person { 'firstName': 'Lucky' } ] } ]
 ```
+
+
+## SetImmutable with Redux
+
+**With SetImmutable:**
+
+```javascript
+const set = require('setimmutable')
+
+function Reducer (state = initialState, action) {
+    switch (action.type) {
+        case 'UPDATE_PERSON': {
+            return set(state, ['people', action.id, 'firstName'], action.firstName)
+        }
+        /* ... */
+    }
+}
+```
+
+**Without SetImmutable:**
+```javascript
+function Reducer (state = initialState, action) {
+  switch (action.type) {
+    case 'UPDATE_PERSON': {
+      return {
+        ...state,
+        people: state.people.map((person, index) => {
+          if (person.id === action.id) {
+            return {
+              ...state.people[index],
+              firstName: action.firstName
+            }
+          }
+        })
+      }
+    }
+    /* ... */
+  }
+}
+```
+
 
 
 [lodash.set]: https://lodash.com/docs#set "_.set(object, path, value)"
