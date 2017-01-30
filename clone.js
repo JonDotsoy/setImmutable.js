@@ -5,3 +5,4 @@ function defaultCloneObject (objValue, srcValue) {
 }
 
 exports = module.exports = defaultCloneObject
+

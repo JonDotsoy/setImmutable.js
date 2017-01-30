@@ -25,7 +25,7 @@ const nextObjMutable = set(originalObj, path, 3) // Update the element and retur
 nextObjMutable === originalObj // true
 
 // With immutable object
-const nextObjImmutable = set(originalObj, path, 3) // Update the tree element and return a new object.
+const nextObjImmutable = setImmutable(originalObj, path, 3) // Update the tree element and return a new object.
 
 nextObjImmutable === originalObj // false
 ```
@@ -65,4 +65,50 @@ function customClone (objValue, srcValue) {
 setImmutable(originalObject, path, newValue, customClone)
 ```
 
+## API
+
+### `set(object, path, value, [customClone])`
+Sets the value at path of object. If a portion of path doesn't exist, it's created.
+
+**Note:** This not method mutates object. It re-create the object defined on the path.
+
+**Arguments**
+
+- **object (*Object*)**: The object to modify.
+- **path (*Array*|*string*)**: The path of the property to set.
+- **value (*)**: The value to set.
+- **[customClone] (*Function*)**: The function to customize clone object.
+
+**Returns**
+
+- ***(Object)***: Return object.
+
+**Example 1 (on [RunKit](https://runkit.com/jondotsoy/setimmutable-example-1))**
+
+```javascript
+const object = {}
+
+set(object, '[0][1][2]', 'a')
+// => { '0': { '1': {'2': 'a' } } }
+```
+
+**Example 2 (on [RunKit](https://runkit.com/jondotsoy/setimmutable-example-2))**
+
+```javascript
+const object = []
+
+function customClone (objValue, srcValue) {
+    switch (objValue.constructor) {
+        case Person: return Person.clone(objValue)
+        /* ... */
+        /* default: return require('setimmutable/clone')(objValue) */
+    }
+}
+
+set(object, '[0].people.[1].firstName', 'Lucky', customClone)
+// => [ { 'people': [ Person { 'firstName': 'Lucky' } ] } ]
+```
+
+
 [lodash.set]: https://lodash.com/docs#set "_.set(object, path, value)"
+
