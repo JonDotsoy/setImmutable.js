@@ -5,6 +5,7 @@
   "description": "An alternative to lodash.set when your object necessary working with immutable objects.",
   "main": "dist/index.js",
   "scripts": {
+    "prepublish": "npm run build",
     "build": "gulp build",
     "test": "mocha"
   },
