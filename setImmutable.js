@@ -22,3 +22,4 @@ function setImmutable (obj, path, val, customizerCloneObject) {
 }
 
 exports = module.exports = setImmutable
+
