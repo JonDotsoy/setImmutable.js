@@ -78,5 +78,18 @@ describe('setImmutable', () => {
     expect(nextObject.prop1.prop1_1.arg2.b).to.be(originalObj.prop1.prop1_1.arg2.b)
   })
 
-  it('set immutables')
+  it.skip('set immutables', () => {})
+
+
+
+  it.skip('mapping set immutables', () => {
+
+    
+    
+  })
+
+
+
 })
+
+
