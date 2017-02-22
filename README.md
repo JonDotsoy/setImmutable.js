@@ -12,15 +12,16 @@ In Node.js:
 const set = require('setimmutable');
 ```
 
+
 ## Mutable Vs. Immutable
 In a simple object when do you use `_.set` the data is updated if it is frozen nothing happens. The **SetImmutable** update the object tree until the final element to be replaced.
 
 ```javascript
-// const set = require('lodash.set')
+// const setLodash = require('lodash.set')
 // const setImmutable = require('setimmutable')
 
 // With mutable object
-const nextObjMutable = set(originalObj, path, 3) // Update the element and return the original object.
+const nextObjMutable = setLodash(originalObj, path, 3) // Update the element and return the original object.
 
 nextObjMutable === originalObj // true
 
