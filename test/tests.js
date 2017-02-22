@@ -43,7 +43,7 @@ describe('setImmutable', () => {
 
   it('with advance object', () => {
     class complexConstructor {
-      constructor(arg1, arg2) {
+      constructor (arg1, arg2) {
         if (!arg1) throw new TypeError('require arg1')
         if (!arg2) throw new TypeError('require arg2')
 
@@ -53,8 +53,8 @@ describe('setImmutable', () => {
     }
 
     const originalObj = {
-      prop1:{
-        prop1_1: new complexConstructor({a:1},{b:2})
+      prop1: {
+        prop1_1: new complexConstructor({a: 1}, {b: 2})
       }
     }
 
@@ -81,16 +81,42 @@ describe('setImmutable', () => {
 
   it.skip('set immutables', () => {})
 
+  describe('mapping set immutables', () => {
+    it('Syntax 1', () => {
+      const prevObj = {}
 
+      const nextObj = map(prevObj, [
+        [ ['a', 'b', 'c'], 1 ],
+        [ 'a.b.d', 2 ],
+        [ ['c', 'a', 'b', 'c'], 3]
+      ])
 
-  it.skip('mapping set immutables', () => {
+      expect(nextObj).not.to.be(prevObj)
+      expect(() => {
+        expect(nextObj.a.b.c).to.be(1)
+        expect(nextObj.a.b.d).to.be(2)
+        expect(nextObj.c.a.b.c).to.be(3)
+      }).not.throwError()
+    })
 
-    
-    
+    it('Syntax 2', () => {
+      const prevObj = {}
+
+      const nextObj = map(prevObj, set => {
+        set(['a','b','c'], 1)
+        set('a.b.d', 2)
+        set(['c','a','b','c'], 3)
+      })
+
+      expect(nextObj).not.to.be(prevObj)
+      expect(() => {
+        expect(nextObj.a.b.c).to.be(1)
+        expect(nextObj.a.b.d).to.be(2)
+        expect(nextObj.c.a.b.c).to.be(3)
+      }).not.throwError()
+
+    })
+
   })
-
-
-
 })
-
 

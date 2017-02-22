@@ -3,7 +3,11 @@
   "title": "SetImmutable",
   "version": "0.1.4",
   "description": "An alternative to lodash.set when your object necessary working with immutable objects.",
-  "main": "dist/index.js",
+  "main": "dist/setImmutable.js",
+  "directories": {
+    "lib": "src",
+    "test": "test"
+  },
   "scripts": {
     "prepublish": "npm run build",
     "build": "gulp build",
@@ -33,5 +37,13 @@
       "latest",
       "stage-2"
     ]
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JonDotsoy/setImmutable.js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JonDotsoy/setImmutable.js/issues"
+  },
+  "homepage": "https://github.com/JonDotsoy/setImmutable.js#readme"
 }
