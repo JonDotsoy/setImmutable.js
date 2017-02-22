@@ -1,4 +1,4 @@
-!dist 
-
-
-Gulpfile.js 
+*.js 
+clone.js 
+setImmutable.js 
+map.js 
