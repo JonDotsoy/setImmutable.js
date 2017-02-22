@@ -1,4 +1,4 @@
-# SetImmutable
+# SetImmutable [![Build Status](https://travis-ci.org/JonDotsoy/setImmutable.js.svg?branch=master)](https://travis-ci.org/JonDotsoy/setImmutable.js)
 An alternative to [lodash.set][] when your object necessary working with immutable objects.
 
 ## Installation
