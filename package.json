@@ -1,7 +1,7 @@
 {
   "name": "setimmutable",
   "title": "SetImmutable",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "An alternative to lodash.set when your object necessary working with immutable objects.",
   "main": "dist/setImmutable.js",
   "directories": {
