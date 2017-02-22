@@ -118,7 +118,6 @@ Temporary Items
 
 # Custom
 
-dist 
-./map.js 
-./clone.js 
-./setImmutable.js 
+*.js 
+!Gulpfile.js 
+!src/*.js 
