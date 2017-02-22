@@ -121,3 +121,4 @@ Temporary Items
 *.js 
 !Gulpfile.js 
 !src/*.js 
+!test/*.js 
