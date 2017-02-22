@@ -115,7 +115,10 @@ Temporary Items
 .apdisk
 
 # End of https://www.gitignore.io/api/node,windows,linux,macos
+
+# Custom
+
 dist 
-map.js 
-clone.js 
-setImmutable.js 
+./map.js 
+./clone.js 
+./setImmutable.js 
