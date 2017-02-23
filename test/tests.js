@@ -103,9 +103,10 @@ describe('setImmutable', () => {
       const prevObj = {}
 
       const nextObj = map(prevObj, set => {
-        set(['a','b','c'], 1)
+        set(['a', 'b', 'c'], 1)
         set('a.b.d', 2)
-        set(['c','a','b','c'], 3)
+        set(['c', 'a', 'b', 'c'], 3)
+        set('d', 'e', 'a', 'b', 4)
       })
 
       expect(nextObj).not.to.be(prevObj)
@@ -113,10 +114,9 @@ describe('setImmutable', () => {
         expect(nextObj.a.b.c).to.be(1)
         expect(nextObj.a.b.d).to.be(2)
         expect(nextObj.c.a.b.c).to.be(3)
+        expect(nextObj.d.e.a.b).to.be(4)
       }).not.throwError()
-
     })
-
   })
 })
 

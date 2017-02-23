@@ -9,7 +9,17 @@ function mapSetImmutable (obj, mapping) {
   } else if ('function' === typeof mapping) {
     let currentObj = obj
 
-    mapping((path, value) => {
+    mapping((...args) => {
+      let path
+      let value
+
+      if (args.length > 2) {
+        value = args.pop()
+        path = args
+      } else {
+        [path, value] = args
+      }
+
       currentObj = set(currentObj, path, value)
 
       return currentObj
