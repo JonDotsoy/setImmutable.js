@@ -20,6 +20,7 @@
   "author": "Jonathan Delgado <hi@jon.soy>",
   "license": "MIT",
   "dependencies": {
+    "decompose.js": "^1.0.5",
     "lodash.setwith": "^4.3.2"
   },
   "devDependencies": {

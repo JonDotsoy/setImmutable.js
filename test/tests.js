@@ -116,44 +116,26 @@ describe('setImmutable', () => {
       expect( nextObj.d.e.a.b ).to.be( 4 )
     })
 
-    it.skip('Syntax 3', () => {
-
-      const c = {}
-      const e = {}
-
-      const myObj = {
-        a:{
-          b: {
-            c,
-            e
-          }
-        }
-      }
-
-      const n = {
-        l: 4
-      }
+    it('Syntax 3', () => {
+      const myObj = {}
 
       const newObj = map(myObj, set => ({
         a: {
           b: {
-            c: set(n)
+            c: set(1)
           },
           l: {
             o: {
-              t: set(n)
+              t: set(2)
             }
           }
         }
       }))
 
+      expect( newObj ).not.to.be( myObj )
 
-      expect(newObj.a.b.c).not.to.be(myObj.a.b.c)
-      expect(newObj.a.b).not.to.be(myObj.a.b)
-      expect(newObj.a).not.to.be(myObj.a)
-      expect(newObj).not.to.be(myObj)
-      expect(newObj.a.b.e).to.be(myObj.a.b.e)
-
+      expect( newObj.a.b.c ).to.be( 1 )
+      expect( newObj.a.l.o.t ).to.be( 2 )
     })
 
   })

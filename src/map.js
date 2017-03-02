@@ -1,4 +1,5 @@
 const set = require('./setImmutable')
+const {decompose} = require('decompose.js')
 
 function mapSetImmutable (objArg, mapping) {
   if (Array.isArray(mapping)) {
@@ -7,10 +8,15 @@ function mapSetImmutable (objArg, mapping) {
     })
   } else if (typeof (mapping) === 'function') {
     const nextMapping = []
+    const setteable = Symbol('setteable')
 
-    const r = mapping((...arg) => { nextMapping.push(arg) })
+    const r = mapping((...arg) => { nextMapping.push(arg); return setteable })
 
-    return mapSetImmutable(objArg, nextMapping)
+    if (Object(r) !== r) {
+      return mapSetImmutable(objArg, nextMapping)
+    } else {
+      return mapSetImmutable(objArg, (decompose(r).filter(([, e]) => e === setteable).map(([path]) => ([path, nextMapping.shift()[0]]))))
+    }
   }
 }
 
