@@ -10,12 +10,18 @@ function mapSetImmutable (objArg, mapping) {
     const nextMapping = []
     const setteable = Symbol('setteable')
 
-    const r = mapping((...arg) => { nextMapping.push(arg); return setteable })
+    const refund = mapping((...arg) => { nextMapping.push(arg); return setteable })
 
-    if (Object(r) !== r) {
+    if (Object(refund) !== refund) {
       return mapSetImmutable(objArg, nextMapping)
     } else {
-      return mapSetImmutable(objArg, (decompose(r).filter(([, e]) => e === setteable).map(([path]) => ([path, nextMapping.shift()[0]]))))
+      return mapSetImmutable(objArg,
+        decompose(r)
+        // Filter only sets content
+        .filter( ( [, content] ) => content === setteable )
+        // Join the path and new content
+        .map( ([path]) => ([path, nextMapping.shift()[0]]) )
+      )
     }
   }
 }
