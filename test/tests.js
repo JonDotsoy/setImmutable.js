@@ -86,9 +86,9 @@ describe('setImmutable', () => {
       const prevObj = {}
 
       const nextObj = map(prevObj, [
-        [ ['a', 'b', 'c'], 1 ],
-        [ 'a.b.d', 2 ],
-        [ ['c', 'a', 'b', 'c'], 3]
+        [ ['a', 'b', 'c'],      1 ],
+        [ 'a.b.d',              2 ],
+        [ ['c', 'a', 'b', 'c'], 3 ]
       ])
 
       expect(nextObj).not.to.be(prevObj)
@@ -103,20 +103,59 @@ describe('setImmutable', () => {
       const prevObj = {}
 
       const nextObj = map(prevObj, set => {
-        set(['a', 'b', 'c'], 1)
-        set('a.b.d', 2)
+        set(['a', 'b', 'c'],      1)
+        set('a.b.d',              2)
         set(['c', 'a', 'b', 'c'], 3)
-        set('d', 'e', 'a', 'b', 4)
+        set(['d', 'e', 'a', 'b'], 4)
       })
 
-      expect(nextObj).not.to.be(prevObj)
-      expect(() => {
-        expect(nextObj.a.b.c).to.be(1)
-        expect(nextObj.a.b.d).to.be(2)
-        expect(nextObj.c.a.b.c).to.be(3)
-        expect(nextObj.d.e.a.b).to.be(4)
-      }).not.throwError()
+      expect( nextObj ).not.to.be( prevObj )
+      expect( nextObj.a.b.c ).to.be( 1 )
+      expect( nextObj.a.b.d ).to.be( 2 )
+      expect( nextObj.c.a.b.c ).to.be( 3 )
+      expect( nextObj.d.e.a.b ).to.be( 4 )
     })
+
+    it.skip('Syntax 3', () => {
+
+      const c = {}
+      const e = {}
+
+      const myObj = {
+        a:{
+          b: {
+            c,
+            e
+          }
+        }
+      }
+
+      const n = {
+        l: 4
+      }
+
+      const newObj = map(myObj, set => ({
+        a: {
+          b: {
+            c: set(n)
+          },
+          l: {
+            o: {
+              t: set(n)
+            }
+          }
+        }
+      }))
+
+
+      expect(newObj.a.b.c).not.to.be(myObj.a.b.c)
+      expect(newObj.a.b).not.to.be(myObj.a.b)
+      expect(newObj.a).not.to.be(myObj.a)
+      expect(newObj).not.to.be(myObj)
+      expect(newObj.a.b.e).to.be(myObj.a.b.e)
+
+    })
+
   })
 })
 

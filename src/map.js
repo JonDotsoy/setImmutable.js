@@ -1,31 +1,17 @@
 const set = require('./setImmutable')
 
-function mapSetImmutable (obj, mapping) {
+function mapSetImmutable (objArg, mapping) {
 
   if (Array.isArray(mapping)) {
-    return [obj, ...mapping].reduce((currentObj, [ path, value ] ) => {
+    return [objArg, ...mapping].reduce((currentObj, [ path, value ] ) => {
       return set(currentObj, path, value)
     })
-  } else if ('function' === typeof mapping) {
-    let currentObj = obj
+  } else if ('function' === typeof(mapping)) {
+    const nextMapping = []
 
-    mapping((...args) => {
-      let path
-      let value
+    const r = mapping((...arg) => { nextMapping.push(arg) })
 
-      if (args.length > 2) {
-        value = args.pop()
-        path = args
-      } else {
-        [path, value] = args
-      }
-
-      currentObj = set(currentObj, path, value)
-
-      return currentObj
-    })
-
-    return currentObj
+    return mapSetImmutable(objArg, nextMapping)
   }
 
 }
