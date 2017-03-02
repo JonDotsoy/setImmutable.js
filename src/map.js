@@ -16,11 +16,11 @@ function mapSetImmutable (objArg, mapping) {
       return mapSetImmutable(objArg, nextMapping)
     } else {
       return mapSetImmutable(objArg,
-        decompose(r)
+        decompose(refund)
         // Filter only sets content
-        .filter( ( [, content] ) => content === setteable )
+        .filter(([, content]) => content === setteable)
         // Join the path and new content
-        .map( ([path]) => ([path, nextMapping.shift()[0]]) )
+        .map(([path]) => ([path, nextMapping.shift()[0]]))
       )
     }
   }
