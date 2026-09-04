@@ -4,12 +4,13 @@
   "version": "0.1.9",
   "description": "An alternative to lodash.set when your object necessary working with immutable objects.",
   "main": "setImmutable.js",
+  "type": "commonjs",
   "directories": {
     "lib": "src",
     "test": "test"
   },
   "scripts": {
-    "prepublish": "npm run build",
+    "prepublishOnly": "npm run build",
     "build": "gulp build",
     "test": "mocha"
   },
@@ -31,7 +32,8 @@
     "expect.js": "^0.3.1",
     "gulp": "^3.9.1",
     "gulp-babel": "^6.1.2",
-    "lodash.set": "^4.3.2"
+    "lodash.set": "^4.3.2",
+    "mocha": "^10.0.0"
   },
   "babel": {
     "presets": [
