@@ -40,3 +40,72 @@ jobs:
         with:
           deno-version: v2.x
       - run: deno run -A --node-modules-dir=auto npm:mocha
+
+  # Smoke test the package as published on npm (not the repo's src/), to
+  # catch cases where the published tarball is broken even though the
+  # source tests above pass.
+  smoke-node:
+    name: smoke / npm install setimmutable (node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - run: npm install setimmutable
+      - name: Require the published package
+        run: |
+          cat > smoke.cjs <<'EOF'
+          const setImmutable = require('setimmutable')
+
+          const obj = Object.freeze({ a: { b: 1 } })
+          const next = setImmutable(obj, 'a.b', 2)
+
+          if (next.a.b !== 2) throw new Error('value was not set')
+          if (next === obj) throw new Error('object was mutated in place')
+
+          console.log('smoke test passed:', JSON.stringify(next))
+          EOF
+          node smoke.cjs
+
+  smoke-bun:
+    name: smoke / npm install setimmutable (bun)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: oven-sh/setup-bun@v2
+      - run: bun add setimmutable
+      - name: Require the published package
+        run: |
+          cat > smoke.cjs <<'EOF'
+          const setImmutable = require('setimmutable')
+
+          const obj = Object.freeze({ a: { b: 1 } })
+          const next = setImmutable(obj, 'a.b', 2)
+
+          if (next.a.b !== 2) throw new Error('value was not set')
+          if (next === obj) throw new Error('object was mutated in place')
+
+          console.log('smoke test passed:', JSON.stringify(next))
+          EOF
+          bun smoke.cjs
+
+  smoke-deno:
+    name: smoke / npm install setimmutable (deno)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Import the published package
+        run: |
+          cat > smoke.mjs <<'EOF'
+          import setImmutable from "npm:setimmutable"
+
+          const obj = Object.freeze({ a: { b: 1 } })
+          const next = setImmutable(obj, "a.b", 2)
+
+          if (next.a.b !== 2) throw new Error("value was not set")
+          if (next === obj) throw new Error("object was mutated in place")
+
+          console.log("smoke test passed:", JSON.stringify(next))
+          EOF
+          deno run -A --node-modules-dir=auto smoke.mjs
