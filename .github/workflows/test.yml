@@ -20,7 +20,7 @@ env:
   # below), so pack mode is expected to only succeed on TC01/TC02/TC03's
   # older runtimes. This is a pre-existing limitation of the repo's
   # build tooling, not of this switch.
-  PACKAGE_SOURCE: npm
+  PACKAGE_SOURCE: pack
 
 jobs:
   # TC01, TC02 and TC03 all run test/integration/tc-published-package.js
