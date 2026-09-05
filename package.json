@@ -11,7 +11,7 @@
   },
   "scripts": {
     "prepublishOnly": "npm run build",
-    "build": "bun build src/setImmutable.js src/map.js src/clone.js --outdir . --target node --format cjs --external lodash.setwith --external decompose.js",
+    "build": "bun build src/setImmutable.js --outfile setImmutable.js --target node --format cjs --no-bundle && bun build src/map.js --outfile map.js --target node --format cjs --no-bundle && bun build src/clone.js --outfile clone.js --target node --format cjs --no-bundle",
     "test": "mocha",
     "test:types": "tsc --noEmit"
   },
