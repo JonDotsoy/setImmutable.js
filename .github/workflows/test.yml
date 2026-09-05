@@ -103,6 +103,10 @@ jobs:
   #   - TC04: whatever Node LTS is current today (same "lts/*" moving
   #     target as the "node" job's matrix), so the same historical
   #     battery of cases is also checked against the present.
+  #   - TC05: whatever Node "Current" release is out today (same
+  #     "latest" moving target as the "node" job's matrix) -- ahead of
+  #     the LTS line, catching anything that only breaks on the newest
+  #     Node before it ever reaches TC04.
   smoke-node-2017:
     name: "TC01: smoke / npm install setimmutable (node 6, 2017)"
     runs-on: ubuntu-latest
@@ -182,6 +186,26 @@ jobs:
         working-directory: ${{ runner.temp }}/tc04
         env:
           TC_ID: TC04
+
+  smoke-node-current:
+    name: "TC05: smoke / npm install setimmutable (node latest, current)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: latest
+      - name: Install the published package in isolation
+        run: |
+          mkdir -p "$RUNNER_TEMP/tc05"
+          cp test/integration/tc-published-package.js "$RUNNER_TEMP/tc05/"
+          cd "$RUNNER_TEMP/tc05"
+          npm install setimmutable
+      - name: Run TC05
+        run: node tc-published-package.js
+        working-directory: ${{ runner.temp }}/tc05
+        env:
+          TC_ID: TC05
 
   # TC01 (types): type-level checks (tsc --noEmit + expect-type) for the
   # same published package TC01 exercises at runtime above. Runs on a
