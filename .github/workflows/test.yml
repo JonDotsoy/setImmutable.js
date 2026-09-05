@@ -89,7 +89,7 @@ jobs:
           EOF
           bun smoke.cjs
 
-  # TC01 and TC02 both run test/integration/tc-published-package.js
+  # TC01, TC02 and TC03 all run test/integration/tc-published-package.js
   # (shared script, parameterized by the TC_ID env var) against the
   # published package, on the Node.js version each targets:
   #   - TC01: Node 6, the LTS active through 2017 and the version pinned
@@ -97,6 +97,9 @@ jobs:
   #   - TC02: Node 10 ("Dubnium"), the LTS active for most of 2019 --
   #     there's no repo-history anchor for 2019 the way TC01 has, so
   #     this is representative of a typical production pin that year.
+  #   - TC03: Node 12 ("Erbium"), the *other* Node LTS touching 2019 --
+  #     it only became Active LTS in October 2019 (the last ~3 months
+  #     of the year), so together TC02+TC03 cover "2019" end to end.
   smoke-node-2017:
     name: "TC01: smoke / npm install setimmutable (node 6, 2017)"
     runs-on: ubuntu-latest
@@ -136,6 +139,26 @@ jobs:
         working-directory: ${{ runner.temp }}/tc02
         env:
           TC_ID: TC02
+
+  smoke-node-2019-12:
+    name: "TC03: smoke / npm install setimmutable (node 12, 2019)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '12'
+      - name: Install the published package in isolation
+        run: |
+          mkdir -p "$RUNNER_TEMP/tc03"
+          cp test/integration/tc-published-package.js "$RUNNER_TEMP/tc03/"
+          cd "$RUNNER_TEMP/tc03"
+          npm install setimmutable
+      - name: Run TC03
+        run: node tc-published-package.js
+        working-directory: ${{ runner.temp }}/tc03
+        env:
+          TC_ID: TC03
 
   # TC01 (types): type-level checks (tsc --noEmit + expect-type) for the
   # same published package TC01 exercises at runtime above. Runs on a
