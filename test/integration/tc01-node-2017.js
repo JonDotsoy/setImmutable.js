@@ -63,6 +63,50 @@ tc('setImmutable(T, ["a", "b"], V) accepts an array path and does not mutate T',
   assert.notStrictEqual(R.a, T.a)
 })
 
+// setImmutable(T, "a", V): R -- a single, non-nested key (no "." at all)
+tc('setImmutable({}, "a", 1) accepts a single top-level key path', function () {
+  var T = {}
+  var R = setImmutable(T, 'a', 1)
+
+  assert.strictEqual(R.a, 1)
+  assert.notStrictEqual(R, T)
+  assert.deepEqual(T, {})
+})
+
+// setImmutable(T, "[0].people.[1].firstName", V): R -- a path string mixing
+// dot and bracket-index segments (the exact form used in the README).
+tc('setImmutable([], "[0].people.[1].firstName", V) accepts a mixed dot/bracket path', function () {
+  var T = []
+  var R = setImmutable(T, '[0].people.[1].firstName', 'Lucky')
+
+  assert.strictEqual(R[0].people[1].firstName, 'Lucky')
+  assert.notStrictEqual(R, T)
+  assert.deepEqual(T, [])
+})
+
+// setImmutable(T, ["people", 0, "name"], V): R -- an array path mixing a
+// string key with a numeric index (not just strings).
+tc('setImmutable(T, ["people", 0, "name"], V) accepts a numeric index inside an array path', function () {
+  var T = {}
+  var R = setImmutable(T, ['people', 0, 'name'], 'Ana')
+
+  assert.strictEqual(R.people[0].name, 'Ana')
+  assert.notStrictEqual(R, T)
+  assert.deepEqual(T, {})
+})
+
+// setImmutable(T, "list[1]", V): R -- updating an element that already
+// exists inside an array (not just creating a new path).
+tc('setImmutable(T, "list[1]", V) updates an existing array element without mutating T', function () {
+  var T = {list: [1, 2, 3]}
+  var R = setImmutable(T, 'list[1]', 99)
+
+  assert.deepEqual(R.list, [1, 99, 3])
+  assert.deepEqual(T.list, [1, 2, 3])
+  assert.notStrictEqual(R, T)
+  assert.notStrictEqual(R.list, T.list)
+})
+
 // setImmutable(T, path, V): R -- T frozen, R still gets the new value
 tc('setImmutable(T, "a.b", V) never mutates a frozen T', function () {
   var T = Object.freeze({a: {b: 1}})
