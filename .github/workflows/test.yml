@@ -100,6 +100,9 @@ jobs:
   #   - TC03: Node 12 ("Erbium"), the *other* Node LTS touching 2019 --
   #     it only became Active LTS in October 2019 (the last ~3 months
   #     of the year), so together TC02+TC03 cover "2019" end to end.
+  #   - TC04: whatever Node LTS is current today (same "lts/*" moving
+  #     target as the "node" job's matrix), so the same historical
+  #     battery of cases is also checked against the present.
   smoke-node-2017:
     name: "TC01: smoke / npm install setimmutable (node 6, 2017)"
     runs-on: ubuntu-latest
@@ -159,6 +162,26 @@ jobs:
         working-directory: ${{ runner.temp }}/tc03
         env:
           TC_ID: TC03
+
+  smoke-node-current-lts:
+    name: "TC04: smoke / npm install setimmutable (node lts/*, current)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Install the published package in isolation
+        run: |
+          mkdir -p "$RUNNER_TEMP/tc04"
+          cp test/integration/tc-published-package.js "$RUNNER_TEMP/tc04/"
+          cd "$RUNNER_TEMP/tc04"
+          npm install setimmutable
+      - name: Run TC04
+        run: node tc-published-package.js
+        working-directory: ${{ runner.temp }}/tc04
+        env:
+          TC_ID: TC04
 
   # TC01 (types): type-level checks (tsc --noEmit + expect-type) for the
   # same published package TC01 exercises at runtime above. Runs on a
