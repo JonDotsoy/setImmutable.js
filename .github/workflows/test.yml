@@ -75,7 +75,7 @@ jobs:
       - name: Install the package under test in isolation
         run: |
           mkdir -p "$RUNNER_TEMP/$TC_ID"
-          cp test/integration/tc-published-package.js test/integration/tc-require.cjs test/integration/tc-import.mjs "$RUNNER_TEMP/$TC_ID/"
+          cp test/integration/tc-published-package.js test/integration/tc-require.cjs test/integration/tc-import.mjs test/integration/tc-import-static.mjs "$RUNNER_TEMP/$TC_ID/"
           if [ "$PACKAGE_SOURCE" = "pack" ]; then
             npm run build
             npm pack
@@ -103,6 +103,15 @@ jobs:
         run: node tc-import.mjs
         working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
         continue-on-error: true
+      - name: Run test (static import setimmutable from "setimmutable")
+        # Unlike tc-import.mjs, this has no top-level `await`, so it only
+        # needs ESM support at all -- unavailable pre-Node-12 (TC01/TC02
+        # fail to parse `import` as a statement, same as the dynamic-
+        # import step above), but expected to work unflagged from Node
+        # 12 onward (TC03-TC05).
+        run: node tc-import-static.mjs
+        working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
+        continue-on-error: ${{ matrix.tc_id == 'TC01' || matrix.tc_id == 'TC02' }}
 
   # TC01 (types): type-level checks (tsc --noEmit + expect-type) for the
   # same package TC01 exercises at runtime above. Runs on a modern Node,
