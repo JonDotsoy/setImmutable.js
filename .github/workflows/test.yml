@@ -112,6 +112,28 @@ jobs:
         run: node tc01-node-2017.js
         working-directory: ${{ runner.temp }}/tc01
 
+  # TC01 (types): type-level checks (tsc --noEmit + expect-type) for the
+  # same published package TC01 exercises at runtime above. Runs on a
+  # modern Node, since tsc itself doesn't support Node 6.
+  # See test/integration/tc01-types.test-d.ts.
+  tc01-types:
+    name: "TC01: types (tsc) / npm install setimmutable"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Install the published package and TypeScript in isolation
+        run: |
+          mkdir -p "$RUNNER_TEMP/tc01-types"
+          cp test/integration/tc01-types.test-d.ts test/integration/tc01-types.tsconfig.json "$RUNNER_TEMP/tc01-types/"
+          cd "$RUNNER_TEMP/tc01-types"
+          npm install setimmutable typescript@^5.9.0 expect-type@^1.4.0
+      - name: Run TC01 (types)
+        run: node_modules/.bin/tsc --noEmit -p tc01-types.tsconfig.json
+        working-directory: ${{ runner.temp }}/tc01-types
+
   smoke-deno:
     name: smoke / npm install setimmutable (deno)
     runs-on: ubuntu-latest
