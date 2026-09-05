@@ -80,20 +80,20 @@ setImmutable(originalObject, path, newValue, customClone)
 ## API
 
 ### `set(object, path, value, [customClone])`
-Sets the value at path of object. If a portion of path doesn't exist, it's created.
+Sets `value` at `path` of `object`. If a portion of `path` doesn't exist, it's created as a plain object (or an array, if the next path segment is an index) — same as `_.set`.
 
-**Note:** This not method mutates object. It re-create the object defined on the path.
+**Note:** This method does not mutate `object`. It clones every node on `path` (root included) and returns that new tree; anything not reachable via `path` keeps its original reference.
 
 **Arguments**
 
-- **object (*Object*)**: The object to modify.
+- **object (*Object*)**: The object to read from. Never mutated.
 - **path (*Array*|*string*)**: The path of the property to set.
 - **value (*)**: The value to set.
-- **[customClone] (*Function*)**: The function to customize clone object.
+- **[customClone] (*Function*)**: `(objValue, key) => Object`, called for every existing object on `path` except the leaf — `objValue` is the current value at that node, `key` the property name about to be assigned in the clone. Return the object to clone into. Only called when `objValue` already exists as an object; missing intermediate segments are always created as a plain object/array regardless of `customClone`. Defaults to [`clone`](#clonevalue) below.
 
 **Returns**
 
-- ***(Object)***: Return object.
+- ***(Object)***: The updated (new) object.
 
 **Example 1 (on [RunKit](https://runkit.com/jondotsoy/setimmutable-example-1))**
 
@@ -109,7 +109,7 @@ set(object, '[0][1][2]', 'a')
 ```javascript
 const object = []
 
-function customClone (objValue, srcValue) {
+function customClone (objValue, key) {
     switch (objValue.constructor) {
         case Person: return Person.clone(objValue)
         /* ... */
@@ -120,6 +120,61 @@ function customClone (objValue, srcValue) {
 set(object, '[0].people.[1].firstName', 'Lucky', customClone)
 // => [ { 'people': [..., Person { 'firstName': 'Lucky' } ] } ]
 ```
+
+### `clone(value)`
+The default per-node clone used by `set` when no `customClone` is given: `require('setimmutable/clone')`. Returns a new, empty instance of `value.constructor` (`new value.constructor()`, or a plain `{}` if `value` has no constructor) — it does **not** copy `value`'s own properties; `set` does that separately with `Object.assign` after cloning. A custom clone function typically falls back to this for constructors it doesn't special-case (see Example 2 above and [SetImmutable with complex constructors](#setimmutable-with-complex-constructors)).
+
+**Arguments**
+
+- **value (*Object*)**: The object whose constructor to instantiate.
+
+**Returns**
+
+- ***(Object)***: A new, empty instance of `value`'s constructor.
+
+### `map(object, mapping)`
+Applies several `set` updates to `object` in a single call: `require('setimmutable/map')`. `object` is still never mutated. `mapping` accepts three shapes:
+
+**1. An array of `[path, value]` pairs** — each pair is applied in order with `set`, so a later path can see the result of an earlier one.
+
+```javascript
+map(object, [
+  [['a', 'b', 'c'], 1],
+  ['a.b.d', 2]
+])
+// => { a: { b: { c: 1, d: 2 } } }
+```
+
+**2. A function `set => { ... }` that calls `set(path, value)` directly** — same two-argument form as the top-level `set`, just batched. The function's return value is ignored.
+
+```javascript
+map(object, set => {
+  set(['a', 'b', 'c'], 1)
+  set('a.b.d', 2)
+})
+// => { a: { b: { c: 1, d: 2 } } }
+```
+
+**3. A function `set => (object literal)` that returns the shape to set** — call `set(value)` (one argument, no path) inline while building a plain object/array literal; `map` infers each value's path from where in the returned literal `set(value)` appears.
+
+```javascript
+map(object, set => ({
+  a: {
+    b: { c: set(1) },
+    l: { o: { t: set(2) } }
+  }
+}))
+// => { a: { b: { c: 1 }, l: { o: { t: 2 } } } }
+```
+
+**Arguments**
+
+- **object (*Object*)**: The object to update.
+- **mapping (*Array*|*Function*)**: An array of `[path, value]` pairs, or a mapper function using syntax 2 or 3 above.
+
+**Returns**
+
+- ***(Object)***: A new object with every update from `mapping` applied.
 
 
 ## SetImmutable with [Redux][redux]
