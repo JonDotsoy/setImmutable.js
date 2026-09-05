@@ -75,7 +75,7 @@ jobs:
       - name: Install the package under test in isolation
         run: |
           mkdir -p "$RUNNER_TEMP/$TC_ID"
-          cp test/integration/tc-published-package.js "$RUNNER_TEMP/$TC_ID/"
+          cp test/integration/tc-published-package.js test/integration/tc-require.cjs test/integration/tc-import.mjs "$RUNNER_TEMP/$TC_ID/"
           if [ "$PACKAGE_SOURCE" = "pack" ]; then
             npm run build
             npm pack
@@ -88,6 +88,12 @@ jobs:
           fi
       - name: Run test
         run: node tc-published-package.js
+        working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
+      - name: Run test (require("setimmutable"))
+        run: node tc-require.cjs
+        working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
+      - name: Run test (dynamic import("setimmutable"))
+        run: node tc-import.mjs
         working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
 
   # TC01 (types): type-level checks (tsc --noEmit + expect-type) for the
