@@ -112,6 +112,28 @@ jobs:
         run: node tc01-node-2017.js
         working-directory: ${{ runner.temp }}/tc01
 
+  # TC02: the same checks as TC01, run against Node 10 instead -- the LTS
+  # ("Dubnium") active for most of 2019. See test/integration/tc02-node-2019.js
+  # for why this version was picked (there's no repo-history anchor for
+  # 2019 the way Node 6/2017 has the old .travis.yml).
+  smoke-node-2019:
+    name: "TC02: smoke / npm install setimmutable (node 10, 2019)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '10'
+      - name: Install the published package in isolation
+        run: |
+          mkdir -p "$RUNNER_TEMP/tc02"
+          cp test/integration/tc02-node-2019.js "$RUNNER_TEMP/tc02/"
+          cd "$RUNNER_TEMP/tc02"
+          npm install setimmutable
+      - name: Run TC02
+        run: node tc02-node-2019.js
+        working-directory: ${{ runner.temp }}/tc02
+
   # TC01 (types): type-level checks (tsc --noEmit + expect-type) for the
   # same published package TC01 exercises at runtime above. Runs on a
   # modern Node, since tsc itself doesn't support Node 6.
