@@ -89,6 +89,29 @@ jobs:
           EOF
           bun smoke.cjs
 
+  # TC01: the published package is importable on the Node.js version this
+  # project originally targeted -- Node 6, the LTS active through 2017 and
+  # the version pinned in the project's original .travis.yml -- and a
+  # handful of setImmutable(T, path, V): R cases behave as documented on
+  # that runtime. See test/integration/tc01-node-2017.js.
+  smoke-node-2017:
+    name: "TC01: smoke / npm install setimmutable (node 6, 2017)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '6'
+      - name: Install the published package in isolation
+        run: |
+          mkdir -p "$RUNNER_TEMP/tc01"
+          cp test/integration/tc01-node-2017.js "$RUNNER_TEMP/tc01/"
+          cd "$RUNNER_TEMP/tc01"
+          npm install setimmutable
+      - name: Run TC01
+        run: node tc01-node-2017.js
+        working-directory: ${{ runner.temp }}/tc01
+
   smoke-deno:
     name: smoke / npm install setimmutable (deno)
     runs-on: ubuntu-latest
