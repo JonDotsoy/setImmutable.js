@@ -4,10 +4,13 @@
  * assertion is checked by the compiler.
  *
  * The library ships as plain, untyped JavaScript (no .d.ts / JSDoc types),
- * so TypeScript currently infers every parameter and return type as `any`.
- * That means several assertions below only document the *intended* shape
- * of the API and are expected to keep passing trivially until real types
- * are added -- at that point they'll start catching real regressions.
+ * so TypeScript currently infers every parameter and the return type as
+ * `any`. That means some assertions below only document the *intended*
+ * shape of the API and are expected to keep passing trivially until real
+ * types are added -- at that point they'll start catching real regressions.
+ * The `.parameters` checks are the exception: they lock in today's actual
+ * arity, so an accidental signature change (adding/removing a parameter)
+ * fails right away, even before real types exist.
  */
 import {expectTypeOf} from 'expect-type'
 import setImmutable from '../src/setImmutable'
@@ -18,17 +21,28 @@ import clone from '../src/clone'
 
 expectTypeOf(setImmutable).toBeFunction()
 
-// object, path (string or array) and value are required.
+// Input: object, path, value, customClone -- all optional today (no real
+// types yet), but the arity itself is pinned.
+expectTypeOf(setImmutable).parameters.toEqualTypeOf<[any?, any?, any?, any?]>()
+
 expectTypeOf(setImmutable).toBeCallableWith({}, 'a.b.c', 1)
 expectTypeOf(setImmutable).toBeCallableWith({}, ['a', 'b', 'c'], 1)
 expectTypeOf(setImmutable).toBeCallableWith([], '[0].people.[1]', {})
-
-// customClone is optional.
 expectTypeOf(setImmutable).toBeCallableWith({}, 'a.b.c', 1, (objValue: unknown, key: unknown) => ({}))
+
+// customClone itself: called with (objValue, key), must return the object
+// to clone into (see the API docs in README.md).
+type CustomClone = Parameters<typeof setImmutable>[3]
+expectTypeOf<CustomClone>().toBeCallableWith({}, 'a')
+
+// Output: still `any` -- should become "the same shape as `object`" once
+// setImmutable is generic over its input.
+expectTypeOf(setImmutable).returns.toBeAny()
 
 // -- map(object, mapping) ----------------------------------------------------
 
 expectTypeOf(map).toBeFunction()
+expectTypeOf(map).parameters.toEqualTypeOf<[any?, any?]>()
 
 // Syntax 1: an array of [path, value] pairs.
 expectTypeOf(map).toBeCallableWith({}, [
@@ -36,15 +50,26 @@ expectTypeOf(map).toBeCallableWith({}, [
   ['a.b.d', 2]
 ])
 
-// Syntax 2 & 3: a mapper function.
+// Syntax 2: a mapper function that calls set(path, value) directly.
 expectTypeOf(map).toBeCallableWith({}, (set: (...args: unknown[]) => unknown) => {
   set(['a', 'b', 'c'], 1)
 })
+
+// Syntax 3: a mapper function that returns the shape to set, using
+// set(value) (one argument, no path) inline.
 expectTypeOf(map).toBeCallableWith({}, (set: (value: unknown) => unknown) => ({
   a: {b: {c: set(1)}}
 }))
 
+// Output: still `any` for the same reason as set()'s return above.
+expectTypeOf(map).returns.toBeAny()
+
 // -- clone(value) -------------------------------------------------------------
 
 expectTypeOf(clone).toBeFunction()
+expectTypeOf(clone).parameters.toEqualTypeOf<[any?, any?]>()
 expectTypeOf(clone).toBeCallableWith({})
+
+// Output: should become "a new, empty instance of value's constructor"
+// once clone is typed -- currently `any`.
+expectTypeOf(clone).returns.toBeAny()
