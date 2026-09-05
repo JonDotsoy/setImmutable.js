@@ -38,7 +38,7 @@ jobs:
   #   - TC05: whatever Node "Current" release is out today -- ahead of
   #     the LTS line, catching anything that only breaks on the newest
   #     Node before it ever reaches TC04.
-  smoke-node-2017:
+  tc01:
     name: "TC01: smoke / install setimmutable (node 6, 2017)"
     runs-on: ubuntu-latest
     steps:
@@ -66,7 +66,7 @@ jobs:
         env:
           TC_ID: TC01
 
-  smoke-node-2019:
+  tc02:
     name: "TC02: smoke / install setimmutable (node 10, 2019)"
     runs-on: ubuntu-latest
     steps:
@@ -94,7 +94,7 @@ jobs:
         env:
           TC_ID: TC02
 
-  smoke-node-2019-12:
+  tc03:
     name: "TC03: smoke / install setimmutable (node 12, 2019)"
     runs-on: ubuntu-latest
     steps:
@@ -122,7 +122,7 @@ jobs:
         env:
           TC_ID: TC03
 
-  smoke-node-current-lts:
+  tc04:
     name: "TC04: smoke / install setimmutable (node lts/*, current)"
     runs-on: ubuntu-latest
     steps:
@@ -150,7 +150,7 @@ jobs:
         env:
           TC_ID: TC04
 
-  smoke-node-current:
+  tc05:
     name: "TC05: smoke / install setimmutable (node latest, current)"
     runs-on: ubuntu-latest
     steps:
