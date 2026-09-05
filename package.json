@@ -12,7 +12,8 @@
   "scripts": {
     "prepublishOnly": "npm run build",
     "build": "gulp build",
-    "test": "mocha"
+    "test": "mocha",
+    "test:types": "tsc --noEmit"
   },
   "keywords": [
     "setimmutable",
@@ -29,11 +30,13 @@
     "babel-preset-stage-2": "^6.22.0",
     "debug": "^2.6.0",
     "deepfreeze": "^2.0.0",
+    "expect-type": "^1.4.0",
     "expect.js": "^0.3.1",
     "gulp": "^3.9.1",
     "gulp-babel": "^6.1.2",
     "lodash.set": "^4.3.2",
-    "mocha": "^10.0.0"
+    "mocha": "^10.0.0",
+    "typescript": "^5.9.0"
   },
   "babel": {
     "presets": [
