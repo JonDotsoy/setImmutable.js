@@ -15,11 +15,13 @@ env:
   #     this branch right now would actually produce.
   # Note: npm's "prepublishOnly" script only runs for `npm publish`, not
   # `npm pack`, so pack mode runs the build explicitly. That build
-  # (gulp 3 + babel 6) only works on the Node versions it targets --
-  # it's known to crash on modern Node (see TC04/TC05/tc01-types
-  # below), so pack mode is expected to only succeed on TC01/TC02/TC03's
-  # older runtimes. This is a pre-existing limitation of the repo's
-  # build tooling, not of this switch.
+  # (gulp 3 + babel 6, via graceful-fs's "natives" hack into Node's
+  # internal fs.js) is known to crash with "ReferenceError: primordials
+  # is not defined" -- confirmed this happens on Node 12 too, not just
+  # modern Node (TC03/TC04/TC05/tc01-types), so TC02 (Node 10) may be
+  # the only runtime where pack mode's build step actually succeeds.
+  # This is a pre-existing limitation of the repo's build tooling, not
+  # of this switch.
   PACKAGE_SOURCE: pack
 
 jobs:
@@ -53,7 +55,8 @@ jobs:
           if [ "$PACKAGE_SOURCE" = "pack" ]; then
             npm install
             npm run build
-            npm pack --pack-destination "$RUNNER_TEMP/tc01"
+            npm pack
+            mv setimmutable-*.tgz "$RUNNER_TEMP/tc01/"
             cd "$RUNNER_TEMP/tc01"
             npm install ./setimmutable-*.tgz
           else
@@ -81,7 +84,8 @@ jobs:
           if [ "$PACKAGE_SOURCE" = "pack" ]; then
             npm install
             npm run build
-            npm pack --pack-destination "$RUNNER_TEMP/tc02"
+            npm pack
+            mv setimmutable-*.tgz "$RUNNER_TEMP/tc02/"
             cd "$RUNNER_TEMP/tc02"
             npm install ./setimmutable-*.tgz
           else
@@ -109,7 +113,8 @@ jobs:
           if [ "$PACKAGE_SOURCE" = "pack" ]; then
             npm install
             npm run build
-            npm pack --pack-destination "$RUNNER_TEMP/tc03"
+            npm pack
+            mv setimmutable-*.tgz "$RUNNER_TEMP/tc03/"
             cd "$RUNNER_TEMP/tc03"
             npm install ./setimmutable-*.tgz
           else
@@ -137,7 +142,8 @@ jobs:
           if [ "$PACKAGE_SOURCE" = "pack" ]; then
             npm install
             npm run build
-            npm pack --pack-destination "$RUNNER_TEMP/tc04"
+            npm pack
+            mv setimmutable-*.tgz "$RUNNER_TEMP/tc04/"
             cd "$RUNNER_TEMP/tc04"
             npm install ./setimmutable-*.tgz
           else
@@ -165,7 +171,8 @@ jobs:
           if [ "$PACKAGE_SOURCE" = "pack" ]; then
             npm install
             npm run build
-            npm pack --pack-destination "$RUNNER_TEMP/tc05"
+            npm pack
+            mv setimmutable-*.tgz "$RUNNER_TEMP/tc05/"
             cd "$RUNNER_TEMP/tc05"
             npm install ./setimmutable-*.tgz
           else
@@ -197,7 +204,8 @@ jobs:
           if [ "$PACKAGE_SOURCE" = "pack" ]; then
             npm install
             npm run build
-            npm pack --pack-destination "$RUNNER_TEMP/tc01-types"
+            npm pack
+            mv setimmutable-*.tgz "$RUNNER_TEMP/tc01-types/"
             cd "$RUNNER_TEMP/tc01-types"
             npm install ./setimmutable-*.tgz typescript@^5.9.0 expect-type@^1.4.0
           else
