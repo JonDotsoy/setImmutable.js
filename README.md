@@ -17,21 +17,29 @@ const set = require('setimmutable');
 
 
 ## Mutable Vs. Immutable
-In a simple object when do you use `_.set` the data is updated if it is frozen nothing happens. The **SetImmutable** update the object tree until the final element to be replaced.
+`_.set(object, path, value)` walks `path` on the object you pass in and assigns `value` directly onto it (creating intermediate objects/arrays only where they're missing), then returns that same reference. If the targeted property is non-writable — e.g. `object` itself was passed through `Object.freeze` — the assignment is a silent no-op: no error, no update, and `_.set`'s return value is still `=== object`.
+
+That silent failure gets worse one level down: `Object.freeze` is **shallow**. It locks `object`'s own properties, but any object *referenced* by those properties is still fully mutable. So freezing the root of a state tree does not protect the rest of the tree — `_.set(frozenRoot, 'a.b', value)` reaches through `frozenRoot.a` (unfrozen) and mutates `b` on it successfully, silently invalidating the "immutable" guarantee callers assumed the freeze gave them.
+
+`setImmutable(object, path, value)` never assigns into `object`. Starting at the root, it clones each node it needs to descend through (see [Clone](#setimmutable-with-complex-constructors) below), sets `value` on the clone, and returns that new tree — so the result is always a distinct object, whether or not anything on `path` was frozen, and every branch not on `path` still keeps its original reference.
 
 ```javascript
-// const setLodash = require('lodash.set')
-// const setImmutable = require('setimmutable')
+const set = require('lodash.set')
+const setImmutable = require('setimmutable')
 
-// With mutable object
-const nextObjMutable = setLodash(originalObj, path, 3) // Update the element and return the original object.
+// Mutable: silently mutates in place, still returns the same reference.
+const mutableObj = Object.freeze({ a: { b: 1 } })
+const nextObjMutable = set(mutableObj, 'a.b', 3)
 
-nextObjMutable === originalObj // true
+nextObjMutable === mutableObj // true
+mutableObj.a.b                // 3 -- mutated in place, despite the freeze
 
-// With immutable object
-const nextObjImmutable = setImmutable(originalObj, path, 3) // Update the tree element and return a new object.
+// Immutable: always returns a new tree, original is untouched.
+const immutableObj = Object.freeze({ a: { b: 1 } })
+const nextObjImmutable = setImmutable(immutableObj, 'a.b', 3)
 
-nextObjImmutable === originalObj // false
+nextObjImmutable === immutableObj // false
+immutableObj.a.b                  // 1 -- unchanged
 ```
 
 ## SetImmutable with complex constructors
