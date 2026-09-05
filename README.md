@@ -1,5 +1,8 @@
 # SetImmutable [![Build Status](https://travis-ci.org/JonDotsoy/setImmutable.js.svg?branch=master)](https://travis-ci.org/JonDotsoy/setImmutable.js)
-An alternative to [lodash.set][] when your object necessary working with immutable objects.
+
+[lodash.set][] sets a value at a path by mutating the target object in place and returning that same reference. That is a problem anywhere state is expected to be immutable: React/Redux (and any `shouldComponentUpdate`, `useMemo`, `connect` or selector built on `===` reference checks), frozen state trees (`Object.freeze`), time-travel/undo history, and change detection that compares object identity instead of deep-diffing on every update.
+
+**SetImmutable** performs the update as a persistent (structural-sharing) operation instead: it walks `path`, and for each node it visits it clones just that node and reassigns the property, then returns a **new root object**. Every object *not* on `path` keeps its original reference, so the result is a shallow copy at each level of the path and the same object everywhere else — cheaper than a deep clone, and `===` on unrelated branches still holds.
 
 ## Installation
 Using npm:
