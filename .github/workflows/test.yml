@@ -39,7 +39,7 @@ jobs:
   #     the LTS line, catching anything that only breaks on the newest
   #     Node before it ever reaches TC04.
   smoke-node-2017:
-    name: "TC01: smoke / install setimmutable (node 6, 2017, source: ${{ env.PACKAGE_SOURCE }})"
+    name: "TC01: smoke / install setimmutable (node 6, 2017)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -67,7 +67,7 @@ jobs:
           TC_ID: TC01
 
   smoke-node-2019:
-    name: "TC02: smoke / install setimmutable (node 10, 2019, source: ${{ env.PACKAGE_SOURCE }})"
+    name: "TC02: smoke / install setimmutable (node 10, 2019)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -95,7 +95,7 @@ jobs:
           TC_ID: TC02
 
   smoke-node-2019-12:
-    name: "TC03: smoke / install setimmutable (node 12, 2019, source: ${{ env.PACKAGE_SOURCE }})"
+    name: "TC03: smoke / install setimmutable (node 12, 2019)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -123,7 +123,7 @@ jobs:
           TC_ID: TC03
 
   smoke-node-current-lts:
-    name: "TC04: smoke / install setimmutable (node lts/*, current, source: ${{ env.PACKAGE_SOURCE }})"
+    name: "TC04: smoke / install setimmutable (node lts/*, current)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -151,7 +151,7 @@ jobs:
           TC_ID: TC04
 
   smoke-node-current:
-    name: "TC05: smoke / install setimmutable (node latest, current, source: ${{ env.PACKAGE_SOURCE }})"
+    name: "TC05: smoke / install setimmutable (node latest, current)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -183,7 +183,7 @@ jobs:
   # since tsc itself doesn't support Node 6. See
   # test/integration/tc01-types.test-d.ts.
   tc01-types:
-    name: "TC01: types (tsc) / install setimmutable (source: ${{ env.PACKAGE_SOURCE }})"
+    name: "TC01: types (tsc) / install setimmutable"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
