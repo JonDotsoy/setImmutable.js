@@ -107,6 +107,75 @@ tc('setImmutable(T, "list[1]", V) updates an existing array element without muta
   assert.notStrictEqual(R.list, T.list)
 })
 
+// setImmutable(T, "a.b.c.d.e", V): R -- a deep path (5 levels), created
+// entirely from scratch.
+tc('setImmutable({}, "a.b.c.d.e", 1) creates a 5-level-deep path', function () {
+  var T = {}
+  var R = setImmutable(T, 'a.b.c.d.e', 1)
+
+  assert.strictEqual(R.a.b.c.d.e, 1)
+  assert.notStrictEqual(R, T)
+  assert.deepEqual(T, {})
+})
+
+// setImmutable(T, ["a", "x.y"], V): R -- a property name that itself
+// contains a "." -- only possible via an array path segment, since a
+// dot-string path would (correctly) read "x.y" as two levels.
+tc('setImmutable(T, ["a", "x.y"], V) treats "x.y" as a single key, not a nested path', function () {
+  var T = {}
+  var R = setImmutable(T, ['a', 'x.y'], 1)
+
+  assert.strictEqual(R.a['x.y'], 1)
+  assert.strictEqual(R.a.x, undefined)
+})
+
+// setImmutable(T, "a[2].b", V): R -- a numeric-looking path segment always
+// creates an array (sparse, with holes), even though nothing on this path
+// existed before.
+tc('setImmutable({}, "a[2].b", V) creates a sparse array for a numeric segment', function () {
+  var T = {}
+  var R = setImmutable(T, 'a[2].b', 1)
+
+  assert.ok(Array.isArray(R.a))
+  assert.strictEqual(R.a.length, 3)
+  assert.strictEqual(R.a[0], undefined)
+  assert.strictEqual(R.a[1], undefined)
+  assert.strictEqual(R.a[2].b, 1)
+})
+
+// setImmutable(T, "people[1].profile.name", V): R -- structural sharing at
+// scale: updating one deeply nested field inside one element of an array
+// of several objects clones only the branch from the root down to that
+// field, and leaves every untouched sibling -- including other array
+// elements and unrelated top-level branches -- at their exact original
+// reference.
+tc('setImmutable(T, "people[1].profile.name", V) only clones the branch it touches', function () {
+  var T = {
+    people: [
+      {id: 1, profile: {name: 'Ana'}},
+      {id: 2, profile: {name: 'Beto'}},
+      {id: 3, profile: {name: 'Caro'}}
+    ],
+    meta: {count: 3}
+  }
+
+  var R = setImmutable(T, 'people[1].profile.name', 'Beto Updated')
+
+  assert.strictEqual(R.people[1].profile.name, 'Beto Updated')
+  assert.strictEqual(T.people[1].profile.name, 'Beto')
+
+  // Untouched branches: same reference as the original, not just deep-equal.
+  assert.strictEqual(R.people[0], T.people[0])
+  assert.strictEqual(R.people[2], T.people[2])
+  assert.strictEqual(R.meta, T.meta)
+
+  // The touched branch, and everything above it up to the root, is new.
+  assert.notStrictEqual(R.people[1], T.people[1])
+  assert.notStrictEqual(R.people[1].profile, T.people[1].profile)
+  assert.notStrictEqual(R.people, T.people)
+  assert.notStrictEqual(R, T)
+})
+
 // setImmutable(T, path, V): R -- T frozen, R still gets the new value
 tc('setImmutable(T, "a.b", V) never mutates a frozen T', function () {
   var T = Object.freeze({a: {b: 1}})
