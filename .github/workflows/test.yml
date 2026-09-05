@@ -14,14 +14,15 @@ env:
   #     resulting `npm pack` tarball instead -- tests what publishing
   #     this branch right now would actually produce.
   # Note: npm's "prepublishOnly" script only runs for `npm publish`, not
-  # `npm pack`, so pack mode runs the build explicitly. That build
-  # (gulp 3 + babel 6, via graceful-fs's "natives" hack into Node's
-  # internal fs.js) is known to crash with "ReferenceError: primordials
-  # is not defined" -- confirmed this happens on Node 12 too, not just
-  # modern Node (TC03/TC04/TC05/tc01-types), so TC02 (Node 10) may be
-  # the only runtime where pack mode's build step actually succeeds.
-  # This is a pre-existing limitation of the repo's build tooling, not
-  # of this switch.
+  # `npm pack`, so pack mode runs the build explicitly. The build itself
+  # (package.json's "build" script) shells out to the `bun` CLI, which
+  # each job installs conditionally (oven-sh/setup-bun) only when
+  # PACKAGE_SOURCE is "pack" -- bun bundles src/*.js into plain CJS at
+  # the repo root regardless of which Node version the job under test
+  # runs on, which is what replaced the old gulp 3 + babel 6 toolchain
+  # (it used to crash with "ReferenceError: primordials is not defined"
+  # on Node 12+, since graceful-fs's "natives" hack into Node's internal
+  # fs.js broke there).
   PACKAGE_SOURCE: pack
 
 jobs:
@@ -48,12 +49,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '6'
+      - uses: oven-sh/setup-bun@v2
+        if: env.PACKAGE_SOURCE == 'pack'
       - name: Install the package under test in isolation
         run: |
           mkdir -p "$RUNNER_TEMP/tc01"
           cp test/integration/tc-published-package.js "$RUNNER_TEMP/tc01/"
           if [ "$PACKAGE_SOURCE" = "pack" ]; then
-            npm install
             npm run build
             npm pack
             mv setimmutable-*.tgz "$RUNNER_TEMP/tc01/"
@@ -77,12 +79,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '10'
+      - uses: oven-sh/setup-bun@v2
+        if: env.PACKAGE_SOURCE == 'pack'
       - name: Install the package under test in isolation
         run: |
           mkdir -p "$RUNNER_TEMP/tc02"
           cp test/integration/tc-published-package.js "$RUNNER_TEMP/tc02/"
           if [ "$PACKAGE_SOURCE" = "pack" ]; then
-            npm install
             npm run build
             npm pack
             mv setimmutable-*.tgz "$RUNNER_TEMP/tc02/"
@@ -106,12 +109,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '12'
+      - uses: oven-sh/setup-bun@v2
+        if: env.PACKAGE_SOURCE == 'pack'
       - name: Install the package under test in isolation
         run: |
           mkdir -p "$RUNNER_TEMP/tc03"
           cp test/integration/tc-published-package.js "$RUNNER_TEMP/tc03/"
           if [ "$PACKAGE_SOURCE" = "pack" ]; then
-            npm install
             npm run build
             npm pack
             mv setimmutable-*.tgz "$RUNNER_TEMP/tc03/"
@@ -135,12 +139,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
+      - uses: oven-sh/setup-bun@v2
+        if: env.PACKAGE_SOURCE == 'pack'
       - name: Install the package under test in isolation
         run: |
           mkdir -p "$RUNNER_TEMP/tc04"
           cp test/integration/tc-published-package.js "$RUNNER_TEMP/tc04/"
           if [ "$PACKAGE_SOURCE" = "pack" ]; then
-            npm install
             npm run build
             npm pack
             mv setimmutable-*.tgz "$RUNNER_TEMP/tc04/"
@@ -164,12 +169,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: latest
+      - uses: oven-sh/setup-bun@v2
+        if: env.PACKAGE_SOURCE == 'pack'
       - name: Install the package under test in isolation
         run: |
           mkdir -p "$RUNNER_TEMP/tc05"
           cp test/integration/tc-published-package.js "$RUNNER_TEMP/tc05/"
           if [ "$PACKAGE_SOURCE" = "pack" ]; then
-            npm install
             npm run build
             npm pack
             mv setimmutable-*.tgz "$RUNNER_TEMP/tc05/"
@@ -197,12 +203,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
+      - uses: oven-sh/setup-bun@v2
+        if: env.PACKAGE_SOURCE == 'pack'
       - name: Install the package under test and TypeScript in isolation
         run: |
           mkdir -p "$RUNNER_TEMP/tc01-types"
           cp test/integration/tc01-types.test-d.ts test/integration/tc01-types.tsconfig.json "$RUNNER_TEMP/tc01-types/"
           if [ "$PACKAGE_SOURCE" = "pack" ]; then
-            npm install
             npm run build
             npm pack
             mv setimmutable-*.tgz "$RUNNER_TEMP/tc01-types/"
