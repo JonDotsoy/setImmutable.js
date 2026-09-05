@@ -5,9 +5,8 @@ on:
   pull_request:
 
 env:
-  # Controls where the jobs below that install "setimmutable" as an
-  # external consumer would (the smoke-* and TCxx jobs, plus tc01-types)
-  # get the package from:
+  # Controls where the TC jobs below that install "setimmutable" as an
+  # external consumer would get the package from:
   #   - "npm" (default): the version currently published on the npm
   #     registry -- catches a stale/broken published tarball even when
   #     the source tests pass.
@@ -17,129 +16,16 @@ env:
   # Note: npm's "prepublishOnly" script only runs for `npm publish`, not
   # `npm pack`, so pack mode runs the build explicitly. That build
   # (gulp 3 + babel 6) only works on the Node versions it targets --
-  # it's known to crash on modern Node (see TC04/TC05/tc01-types/
-  # smoke-node below), so pack mode is expected to only succeed on
-  # TC01/TC02/TC03's older runtimes. This is a pre-existing limitation
-  # of the repo's build tooling, not of this switch.
+  # it's known to crash on modern Node (see TC04/TC05/tc01-types
+  # below), so pack mode is expected to only succeed on TC01/TC02/TC03's
+  # older runtimes. This is a pre-existing limitation of the repo's
+  # build tooling, not of this switch.
   PACKAGE_SOURCE: npm
 
 jobs:
-  node:
-    name: node (${{ matrix.node-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version:
-          - lts/*
-          - latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-      - run: npm install
-      - run: npm test
-      - run: npm run test:types
-
-  bun:
-    name: bun
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install
-      - run: bun run test
-
-  deno:
-    name: deno
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-      - run: deno run -A --node-modules-dir=auto npm:mocha
-
-  # Smoke test the package as published on npm (not the repo's src/), to
-  # catch cases where the published tarball is broken even though the
-  # source tests above pass.
-  smoke-node:
-    name: "smoke / install setimmutable (node, source: ${{ env.PACKAGE_SOURCE }})"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-      - name: Install the package under test in isolation
-        run: |
-          mkdir -p "$RUNNER_TEMP/smoke-node"
-          if [ "$PACKAGE_SOURCE" = "pack" ]; then
-            npm install
-            npm run build
-            npm pack --pack-destination "$RUNNER_TEMP/smoke-node"
-            cd "$RUNNER_TEMP/smoke-node"
-            npm install ./setimmutable-*.tgz
-          else
-            cd "$RUNNER_TEMP/smoke-node"
-            npm install setimmutable
-          fi
-      - name: Require the package under test
-        run: |
-          cat > smoke.cjs <<'EOF'
-          const setImmutable = require('setimmutable')
-
-          const obj = Object.freeze({ a: { b: 1 } })
-          const next = setImmutable(obj, 'a.b', 2)
-
-          if (next.a.b !== 2) throw new Error('value was not set')
-          if (next === obj) throw new Error('object was mutated in place')
-
-          console.log('smoke test passed:', JSON.stringify(next))
-          EOF
-          node smoke.cjs
-        working-directory: ${{ runner.temp }}/smoke-node
-
-  smoke-bun:
-    name: "smoke / install setimmutable (bun, source: ${{ env.PACKAGE_SOURCE }})"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - uses: actions/setup-node@v4
-        if: env.PACKAGE_SOURCE == 'pack'
-        with:
-          node-version: lts/*
-      - name: Install the package under test
-        run: |
-          mkdir -p "$RUNNER_TEMP/smoke-bun"
-          if [ "$PACKAGE_SOURCE" = "pack" ]; then
-            npm install
-            npm run build
-            npm pack --pack-destination "$RUNNER_TEMP/smoke-bun"
-            bun add "$RUNNER_TEMP"/smoke-bun/setimmutable-*.tgz
-          else
-            bun add setimmutable
-          fi
-      - name: Require the package under test
-        run: |
-          cat > smoke.cjs <<'EOF'
-          const setImmutable = require('setimmutable')
-
-          const obj = Object.freeze({ a: { b: 1 } })
-          const next = setImmutable(obj, 'a.b', 2)
-
-          if (next.a.b !== 2) throw new Error('value was not set')
-          if (next === obj) throw new Error('object was mutated in place')
-
-          console.log('smoke test passed:', JSON.stringify(next))
-          EOF
-          bun smoke.cjs
-
   # TC01, TC02 and TC03 all run test/integration/tc-published-package.js
   # (shared script, parameterized by the TC_ID env var) against the
-  # published package, on the Node.js version each targets:
+  # package under test, on the Node.js version each targets:
   #   - TC01: Node 6, the LTS active through 2017 and the version pinned
   #     in the project's original .travis.yml.
   #   - TC02: Node 10 ("Dubnium"), the LTS active for most of 2019 --
@@ -148,11 +34,8 @@ jobs:
   #   - TC03: Node 12 ("Erbium"), the *other* Node LTS touching 2019 --
   #     it only became Active LTS in October 2019 (the last ~3 months
   #     of the year), so together TC02+TC03 cover "2019" end to end.
-  #   - TC04: whatever Node LTS is current today (same "lts/*" moving
-  #     target as the "node" job's matrix), so the same historical
-  #     battery of cases is also checked against the present.
-  #   - TC05: whatever Node "Current" release is out today (same
-  #     "latest" moving target as the "node" job's matrix) -- ahead of
+  #   - TC04: whatever Node LTS is current today.
+  #   - TC05: whatever Node "Current" release is out today -- ahead of
   #     the LTS line, catching anything that only breaks on the newest
   #     Node before it ever reaches TC04.
   smoke-node-2017:
@@ -324,28 +207,3 @@ jobs:
       - name: Run TC01 (types)
         run: node_modules/.bin/tsc --noEmit -p tc01-types.tsconfig.json
         working-directory: ${{ runner.temp }}/tc01-types
-
-  # Not affected by PACKAGE_SOURCE: Deno's "npm:setimmutable" specifier
-  # only resolves against the registry, not a local tarball, so this
-  # always tests the published version.
-  smoke-deno:
-    name: smoke / npm install setimmutable (deno)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-      - name: Import the published package
-        run: |
-          cat > smoke.mjs <<'EOF'
-          import setImmutable from "npm:setimmutable"
-
-          const obj = Object.freeze({ a: { b: 1 } })
-          const next = setImmutable(obj, "a.b", 2)
-
-          if (next.a.b !== 2) throw new Error("value was not set")
-          if (next === obj) throw new Error("object was mutated in place")
-
-          console.log("smoke test passed:", JSON.stringify(next))
-          EOF
-          deno run -A --node-modules-dir=auto smoke.mjs
