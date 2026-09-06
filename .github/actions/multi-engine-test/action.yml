@@ -17,11 +17,21 @@ inputs:
       Code snippets to run, one per "case". Separate cases with a line
       containing only "---". Each case is executed as a standalone script
       against every engine above, with "setimmutable" installed from the
-      tarball this action builds. A case using `import` is run as ESM
-      (.mjs); anything else is run as CommonJS (.js). Give a case a short
-      title for the results table by making its first line a `// Title`
-      comment -- it's stripped before the code runs. Without one, the
-      table falls back to the code's own first line.
+      tarball this action builds. A case can lead with any of these
+      "// key: value" metadata comments, in any order -- each is stripped
+      before the code runs, so a case never has to also be valid syntax:
+        // title: <label>        results-table label (default: the
+                                  code's own first line)
+        // filename: <name>      the filename the case runs as (default:
+                                  case-N.js or case-N.mjs)
+        // type: module|commonjs forces .mjs/.js (default: inferred from
+                                  a static/bare `import` or an `await`
+                                  anywhere in the code, else CommonJS)
+      e.g.:
+        // title: Dynamic import
+        // filename: dynamic-import.mjs
+        // type: module
+        const { default: set } = await import("setimmutable")
     required: true
   github-token:
     description: Token used to read/post the PR comment.

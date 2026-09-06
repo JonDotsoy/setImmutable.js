@@ -32,33 +32,65 @@ $line"
 done <<< "$CASES_INPUT"
 CASES+=("$current")
 
-# --- Write each case to its own file (ESM if it uses `import`, else CJS) ---
-# A case's own first line can be a "// Title" comment giving it a short
-# summary for the results table -- stripped from the code before it
-# runs, so it never has to also be valid syntax to execute. Without one,
-# the code's own first line is used as the label, same as before.
+# --- Write each case to its own file ---
+# A case can lead with any of these "// key: value" metadata comments,
+# in any order, before its actual code -- each is stripped from the code
+# before it runs, so a case never has to also be valid syntax:
+#   // title: <label>      -- results-table label (default: code's 1st line)
+#   // filename: <name>    -- the name the case runs as (default: case-N.<ext>)
+#   // type: module|commonjs -- forces .mjs/.js (default: inferred, see below)
 CASE_FILES=()
 CASE_LABELS=()
 for i in "${!CASES[@]}"; do
   case_text="${CASES[$i]}"
-  first_line=$(echo "$case_text" | sed -n '1p')
-  if [[ "$first_line" =~ ^//[[:space:]]*(.+)$ ]]; then
-    label="${BASH_REMATCH[1]}"
-    code_text=$(echo "$case_text" | tail -n +2)
+  title=""
+  filename=""
+  type=""
+  remaining="$case_text"
+  while true; do
+    first_line="${remaining%%$'\n'*}"
+    if [[ "$first_line" =~ ^//[[:space:]]*([A-Za-z_]+):[[:space:]]*(.*)$ ]]; then
+      key=$(echo "${BASH_REMATCH[1]}" | tr '[:upper:]' '[:lower:]')
+      value="${BASH_REMATCH[2]}"
+      case "$key" in
+        title) title="$value" ;;
+        filename) filename="$value" ;;
+        type) type="$value" ;;
+      esac
+      if [[ "$remaining" == *$'\n'* ]]; then
+        remaining="${remaining#*$'\n'}"
+      else
+        remaining=""
+      fi
+    else
+      break
+    fi
+  done
+  code_text="$remaining"
+  label="${title:-$(echo "$code_text" | sed -n '1p')}"
+
+  if [ -n "$filename" ]; then
+    file_basename="$filename"
   else
-    label="$first_line"
-    code_text="$case_text"
+    case "$type" in
+      module) ext="mjs" ;;
+      commonjs) ext="js" ;;
+      *)
+        # No explicit type: infer from a static/bare `import` statement,
+        # or `await` anywhere (these are simple top-level scripts, so
+        # `await` -- e.g. `await import(...)` -- implies top-level
+        # await, which itself only parses inside a real module).
+        if echo "$code_text" | grep -qE '^\s*import[[:space:]]|\bawait\b'; then
+          ext="mjs"
+        else
+          ext="js"
+        fi
+        ;;
+    esac
+    file_basename="case-$i.$ext"
   fi
-  # ESM if the case uses a static/bare `import` statement, or `await`
-  # anywhere (these cases are simple top-level scripts, so an `await` --
-  # e.g. `await import(...)` -- means top-level await, which itself only
-  # parses inside a real module) -- else CJS.
-  if echo "$code_text" | grep -qE '^\s*import[[:space:]]|\bawait\b'; then
-    ext="mjs"
-  else
-    ext="js"
-  fi
-  file="$WORK/case-$i.$ext"
+
+  file="$WORK/$file_basename"
   printf '%s\n' "$code_text" > "$file"
   CASE_FILES+=("$file")
   CASE_LABELS+=("$label")
