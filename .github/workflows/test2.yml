@@ -20,6 +20,7 @@ jobs:
         with:
           engines: |
             node 6
+            node 10
             node 12
             node lts
             node latest
