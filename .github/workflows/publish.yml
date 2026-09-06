@@ -1,0 +1,149 @@
+name: Publish
+
+# Publishes `setimmutable` to npm whenever package.json's version changes,
+# either as a PR preview (pull_request) or the real release (push to
+# master), so reviewers can `npm install setimmutable@rc` and try a PR's
+# exact code, and a version merged to master ships automatically once it's
+# there. Scoped to package.json changes so unrelated pushes (docs, CI
+# tweaks, source changes without a version bump) don't mint a new
+# npm/GitHub release for nothing. Uses npm Trusted Publishing (OIDC) -- no
+# NPM_TOKEN secret involved, see https://docs.npmjs.com/trusted-publishers.
+#
+# package.json's committed version (e.g. "0.2.0-rc.1") is only the base:
+# npm publish is a one-shot per version -- the registry rejects a second
+# publish of a version that already exists (E403/E409) -- so a fixed
+# version would only work for the first push carrying it. Instead this
+# appends the run number (monotonically increasing, unique per workflow
+# run) as the real prerelease number, so every push gets a fresh,
+# publishable version -- for a PR this means a new rc.N each push; for a
+# push to master it still applies if master's own version is itself a
+# prerelease (e.g. merging while still on "0.2.0-rc.1").
+#
+# The dist-tag is inferred from that same prerelease identifier, not
+# hardcoded: "0.2.0-rc.1" publishes under "rc", "0.2.0-beta.2" would
+# publish under "beta", and a plain release version with no prerelease
+# identifier (e.g. "0.1.0") publishes under "latest" -- and is the only
+# case marked as a non-prerelease GitHub Release.
+#
+# Before any of that, check-master-version gates the whole thing on
+# master's own package.json: once master's version has a GitHub Release,
+# that version is considered shipped, and further publishes for it stop --
+# a maintainer bumps package.json (on master, or in a new PR) to open the
+# window for the next round.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - package.json
+  push:
+    branches:
+      - master
+    paths:
+      - package.json
+
+jobs:
+  check-master-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      should_publish: ${{ steps.check.outputs.should_publish }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 1
+
+      - name: Check if master's version already has a release
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          MASTER_VERSION=$(node -e "console.log(require('./package.json').version)")
+          if gh release view "v$MASTER_VERSION" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            echo "master is at $MASTER_VERSION, which already has a release (v$MASTER_VERSION) -- stopping the publish workflow."
+          else
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "master is at $MASTER_VERSION, no release yet -- continuing with publish."
+          fi
+
+  publish:
+    needs: check-master-version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    # Forked PRs don't get an OIDC token for this repo's trusted publisher
+    # (and shouldn't -- anyone could open one otherwise), so skip them
+    # instead of failing loudly -- doesn't apply to push events, which
+    # only ever come from this repo's own master branch. Also stop once
+    # master's version is already released (see check-master-version
+    # above).
+    if: |
+      needs.check-master-version.outputs.should_publish == 'true' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          registry-url: https://registry.npmjs.org
+
+      - uses: oven-sh/setup-bun@v2
+
+      # Trusted Publishing (OIDC) needs npm 11.5.1+; the Node LTS-bundled
+      # npm may be older.
+      - name: Ensure npm supports Trusted Publishing
+        run: npm install -g npm@latest
+
+      - name: Set unique version and dist-tag
+        run: |
+          RAW_VERSION=$(node -e "console.log(require('./package.json').version)")
+          if [[ "$RAW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-([A-Za-z]+)(\.[0-9]+)?$ ]]; then
+            TAG="${BASH_REMATCH[1]}"
+            BASE_VERSION="${RAW_VERSION%-*}"
+            VERSION="${BASE_VERSION}-${TAG}.${{ github.run_number }}"
+            PRERELEASE=true
+          else
+            TAG="latest"
+            VERSION="$RAW_VERSION"
+            PRERELEASE=false
+          fi
+          npm pkg set version="$VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "PRERELEASE=$PRERELEASE" >> "$GITHUB_ENV"
+          echo "Publishing $VERSION under dist-tag $TAG"
+
+      - name: Publish
+        run: npm publish --tag "$TAG"
+
+      # GitHub has no notion of a package's own version history, so a
+      # Release is the closest thing to a changelog entry for what got
+      # published -- linking straight to the npm page saves anyone digging
+      # through Actions logs to find it. Marked prerelease except for a
+      # plain, non-prerelease version (dist-tag "latest").
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            SOURCE_NOTE="PR preview build from #${{ github.event.pull_request.number }}."
+          else
+            SOURCE_NOTE="Published from master (${{ github.sha }})."
+          fi
+
+          PRERELEASE_FLAG=()
+          if [ "$PRERELEASE" = "true" ]; then
+            PRERELEASE_FLAG=(--prerelease)
+          fi
+
+          gh release create "v$VERSION" \
+            --target "${{ github.sha }}" \
+            --title "v$VERSION" \
+            "${PRERELEASE_FLAG[@]}" \
+            --notes "$SOURCE_NOTE
+
+          npm: https://www.npmjs.com/package/setimmutable/v/$VERSION"
