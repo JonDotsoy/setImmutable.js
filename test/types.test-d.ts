@@ -3,14 +3,12 @@
  * (see `npm run test:types`). These do not execute at runtime -- every
  * assertion is checked by the compiler.
  *
- * The library ships as plain, untyped JavaScript (no .d.ts / JSDoc types),
- * so TypeScript currently infers every parameter and the return type as
- * `any`. That means some assertions below only document the *intended*
- * shape of the API and are expected to keep passing trivially until real
- * types are added -- at that point they'll start catching real regressions.
- * The `.parameters` checks are the exception: they lock in today's actual
- * arity, so an accidental signature change (adding/removing a parameter)
- * fails right away, even before real types exist.
+ * The source (src/*.ts) is real TypeScript, but every value it works
+ * with is still typed `any` -- setImmutable isn't generic over its
+ * input yet, so `.returns` and most parameter positions stay `any`
+ * below on purpose. The `.parameters` checks lock in today's actual
+ * arity and optionality (including which parameters are genuinely
+ * optional), so an accidental signature change fails right away.
  */
 import {expectTypeOf} from 'expect-type'
 import setImmutable from '../src/setImmutable'
@@ -21,9 +19,9 @@ import clone from '../src/clone'
 
 expectTypeOf(setImmutable).toBeFunction()
 
-// Input: object, path, value, customClone -- all optional today (no real
-// types yet), but the arity itself is pinned.
-expectTypeOf(setImmutable).parameters.toEqualTypeOf<[any?, any?, any?, any?]>()
+// Input: object, path, value are required; customClone is the only
+// genuinely optional parameter.
+expectTypeOf(setImmutable).parameters.toEqualTypeOf<[any, any, any, ((objValue: any, srcValue: any) => any)?]>()
 
 expectTypeOf(setImmutable).toBeCallableWith({}, 'a.b.c', 1)
 expectTypeOf(setImmutable).toBeCallableWith({}, ['a', 'b', 'c'], 1)
@@ -32,7 +30,7 @@ expectTypeOf(setImmutable).toBeCallableWith({}, 'a.b.c', 1, (objValue: unknown, 
 
 // customClone itself: called with (objValue, key), must return the object
 // to clone into (see the API docs in README.md).
-type CustomClone = Parameters<typeof setImmutable>[3]
+type CustomClone = NonNullable<Parameters<typeof setImmutable>[3]>
 expectTypeOf<CustomClone>().toBeCallableWith({}, 'a')
 
 // Output: still `any` -- should become "the same shape as `object`" once
@@ -42,7 +40,7 @@ expectTypeOf(setImmutable).returns.toBeAny()
 // -- map(object, mapping) ----------------------------------------------------
 
 expectTypeOf(map).toBeFunction()
-expectTypeOf(map).parameters.toEqualTypeOf<[any?, any?]>()
+expectTypeOf(map).parameters.toEqualTypeOf<[any, any]>()
 
 // Syntax 1: an array of [path, value] pairs.
 expectTypeOf(map).toBeCallableWith({}, [
@@ -67,7 +65,7 @@ expectTypeOf(map).returns.toBeAny()
 // -- clone(value) -------------------------------------------------------------
 
 expectTypeOf(clone).toBeFunction()
-expectTypeOf(clone).parameters.toEqualTypeOf<[any?, any?]>()
+expectTypeOf(clone).parameters.toEqualTypeOf<[any, any?]>()
 expectTypeOf(clone).toBeCallableWith({})
 
 // Output: should become "a new, empty instance of value's constructor"

@@ -11,8 +11,8 @@
   },
   "scripts": {
     "prepublishOnly": "npm run build",
-    "build": "bun build src/setImmutable.js --outfile setImmutable.js --target node --format cjs --no-bundle && bun build src/map.js --outfile map.js --target node --format cjs --no-bundle && bun build src/clone.js --outfile clone.js --target node --format cjs --no-bundle",
-    "test": "mocha",
+    "build": "bun build src/setImmutable.ts --outfile setImmutable.js --target node --format cjs --no-bundle && bun build src/map.ts --outfile map.js --target node --format cjs --no-bundle && bun build src/clone.ts --outfile clone.js --target node --format cjs --no-bundle",
+    "test": "bun node_modules/.bin/mocha",
     "test:types": "tsc --noEmit"
   },
   "keywords": [

@@ -17,8 +17,8 @@ env:
   # `npm pack`, so pack mode runs the build explicitly. The build itself
   # (package.json's "build" script) shells out to the `bun` CLI, which
   # each job installs conditionally (oven-sh/setup-bun) only when
-  # PACKAGE_SOURCE is "pack" -- bun bundles src/*.js into plain CJS at
-  # the repo root regardless of which Node version the job under test
+  # PACKAGE_SOURCE is "pack" -- bun transpiles src/*.ts into plain CJS
+  # at the repo root regardless of which Node version the job under test
   # runs on, which is what replaced the old gulp 3 + babel 6 toolchain
   # (it used to crash with "ReferenceError: primordials is not defined"
   # on Node 12+, since graceful-fs's "natives" hack into Node's internal
