@@ -345,6 +345,7 @@ jobs:
 
       - uses: jondotsoy/action-greencase@develop
         with:
+          pack: 'true'
           build-command: npm run build
           engines: |
             node 6
