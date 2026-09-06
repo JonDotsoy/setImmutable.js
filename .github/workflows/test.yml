@@ -1,0 +1,362 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+env:
+  # Controls where the TC jobs below that install "setimmutable" as an
+  # external consumer would get the package from:
+  #   - "npm" (default): the version currently published on the npm
+  #     registry -- catches a stale/broken published tarball even when
+  #     the source tests pass.
+  #   - "pack": build this branch (`npm run build`) and install the
+  #     resulting `npm pack` tarball instead -- tests what publishing
+  #     this branch right now would actually produce.
+  # Note: npm's "prepublishOnly" script only runs for `npm publish`, not
+  # `npm pack`, so pack mode runs the build explicitly. The build itself
+  # (package.json's "build" script) shells out to the `bun` CLI, which
+  # each job installs conditionally (oven-sh/setup-bun) only when
+  # PACKAGE_SOURCE is "pack" -- bun transpiles src/*.ts into plain CJS
+  # at the repo root regardless of which Node version the job under test
+  # runs on, which is what replaced the old gulp 3 + babel 6 toolchain
+  # (it used to crash with "ReferenceError: primordials is not defined"
+  # on Node 12+, since graceful-fs's "natives" hack into Node's internal
+  # fs.js broke there).
+  PACKAGE_SOURCE: pack
+
+jobs:
+  # TC02-TC06 all run test/integration/tc-published-package.js (shared
+  # script, parameterized by the TC_ID env var) against the package
+  # under test, one Node.js version each via the matrix below (TC01 is
+  # the separate types job further down):
+  #   - TC02: Node 6, the LTS active through 2017 and the version pinned
+  #     in the project's original .travis.yml.
+  #   - TC03: Node 10 ("Dubnium"), the LTS active for most of 2019 --
+  #     there's no repo-history anchor for 2019 the way TC02 has, so
+  #     this is representative of a typical production pin that year.
+  #   - TC04: Node 12 ("Erbium"), the *other* Node LTS touching 2019 --
+  #     it only became Active LTS in October 2019 (the last ~3 months
+  #     of the year), so together TC03+TC04 cover "2019" end to end.
+  #   - TC05: whatever Node LTS is current today.
+  #   - TC06: whatever Node "Current" release is out today -- ahead of
+  #     the LTS line, catching anything that only breaks on the newest
+  #     Node before it ever reaches TC05.
+  tc:
+    name: "${{ matrix.tc_id }}: smoke / install setimmutable (${{ matrix.label }})"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tc_id: TC02
+            node_version: '6'
+            label: "node 6, 2017"
+          - tc_id: TC03
+            node_version: '10'
+            label: "node 10, 2019"
+          - tc_id: TC04
+            node_version: '12'
+            label: "node 12, 2019"
+          - tc_id: TC05
+            node_version: "lts/*"
+            label: "node lts/*, current"
+          - tc_id: TC06
+            node_version: latest
+            label: "node latest, current"
+    env:
+      TC_ID: ${{ matrix.tc_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node_version }}
+      - uses: oven-sh/setup-bun@v2
+        if: env.PACKAGE_SOURCE == 'pack'
+      - name: Install the package under test in isolation
+        run: |
+          mkdir -p "$RUNNER_TEMP/$TC_ID"
+          cp test/integration/tc-published-package.js test/integration/tc-require.cjs test/integration/tc-import.mjs test/integration/tc-import-static.mjs test/integration/tc-bare-import.mjs test/integration/tc-bare-import-map.mjs "$RUNNER_TEMP/$TC_ID/"
+          if [ "$PACKAGE_SOURCE" = "pack" ]; then
+            npm run build
+            npm pack
+            mv setimmutable-*.tgz "$RUNNER_TEMP/$TC_ID/"
+            cd "$RUNNER_TEMP/$TC_ID"
+            npm install ./setimmutable-*.tgz
+          else
+            cd "$RUNNER_TEMP/$TC_ID"
+            npm install setimmutable
+          fi
+      - name: Run test
+        id: test_published
+        run: node tc-published-package.js
+        working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
+      - name: Run test (require("setimmutable"))
+        id: test_require
+        run: node tc-require.cjs
+        working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
+      - name: Run test (dynamic import("setimmutable"))
+        id: test_import_dynamic
+        # Top-level `await` in an ES module (needed for this literal
+        # `await import(...)` style) wasn't unflagged until Node 14.8 --
+        # expected to fail on TC02 (Node 6, no ESM support at all: fails
+        # to even parse the `import` keyword) and TC03/TC04 (Node 10/12:
+        # parse `import()` fine but reject top-level `await` as a
+        # reserved word). continue-on-error so that known, inherent gap
+        # doesn't block CI on those older Node versions.
+        run: node tc-import.mjs
+        working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
+        continue-on-error: true
+      - name: Run test (static import setimmutable from "setimmutable")
+        id: test_import_static
+        # Unlike tc-import.mjs, this has no top-level `await`, so it only
+        # needs ESM support at all -- unavailable pre-Node-12 (TC02/TC03
+        # fail to parse `import` as a statement, same as the dynamic-
+        # import step above), but expected to work unflagged from Node
+        # 12 onward (TC04-TC06).
+        run: node tc-import-static.mjs
+        working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
+        continue-on-error: ${{ matrix.tc_id == 'TC02' || matrix.tc_id == 'TC03' }}
+      - name: Run test (bare import "setimmutable")
+        id: test_bare_import
+        # Same ESM-support constraint as the static-import step above: no
+        # top-level await needed, just ESM at all.
+        run: node tc-bare-import.mjs
+        working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
+        continue-on-error: ${{ matrix.tc_id == 'TC02' || matrix.tc_id == 'TC03' }}
+      - name: Run test (bare import "setimmutable/map")
+        id: test_bare_import_map
+        # Exercises package.json's "exports" map: Node's ESM resolver (as
+        # opposed to require()) does not infer the ".js" extension on a
+        # bare subpath specifier, so without "exports" this import would
+        # fail with ERR_MODULE_NOT_FOUND even on modern Node.
+        run: node tc-bare-import-map.mjs
+        working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
+        continue-on-error: ${{ matrix.tc_id == 'TC02' || matrix.tc_id == 'TC03' }}
+      - name: Write result summary
+        # `steps.<id>.outcome` is the step's *real* pass/fail, unaffected
+        # by continue-on-error (unlike `.conclusion`, and unlike anything
+        # the Jobs API exposes about a sibling job's steps -- see the
+        # "report" job below) -- captured here as JSON and uploaded as a
+        # per-matrix-leg artifact so "report" can build a real syntax x
+        # Node-version table instead of only a per-job pass/fail summary.
+        if: always()
+        run: |
+          cat > "$RUNNER_TEMP/tc-result-$TC_ID.json" << EOF
+          {
+            "tc_id": "$TC_ID",
+            "label": ${{ toJSON(matrix.label) }},
+            "results": {
+              "published": "${{ steps.test_published.outcome }}",
+              "require": "${{ steps.test_require.outcome }}",
+              "import_dynamic": "${{ steps.test_import_dynamic.outcome }}",
+              "import_static": "${{ steps.test_import_static.outcome }}",
+              "bare_import": "${{ steps.test_bare_import.outcome }}",
+              "bare_import_map": "${{ steps.test_bare_import_map.outcome }}"
+            }
+          }
+          EOF
+      - name: Upload result summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tc-result-${{ matrix.tc_id }}
+          path: ${{ runner.temp }}/tc-result-${{ matrix.tc_id }}.json
+          retention-days: 1
+
+  # TC01 (types): type-level checks (tsc --noEmit + expect-type) for the
+  # same package the TC02-TC06 matrix exercises at runtime above. Runs
+  # on a modern Node, since tsc itself doesn't support Node 6. See
+  # test/integration/tc01-types.test-d.ts.
+  tc01-types:
+    name: "TC01: types (tsc) / install setimmutable"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - uses: oven-sh/setup-bun@v2
+        if: env.PACKAGE_SOURCE == 'pack'
+      - name: Install the package under test and TypeScript in isolation
+        run: |
+          mkdir -p "$RUNNER_TEMP/tc01-types"
+          cp test/integration/tc01-types.test-d.ts test/integration/tc01-types.tsconfig.json "$RUNNER_TEMP/tc01-types/"
+          if [ "$PACKAGE_SOURCE" = "pack" ]; then
+            npm run build
+            npm pack
+            mv setimmutable-*.tgz "$RUNNER_TEMP/tc01-types/"
+            cd "$RUNNER_TEMP/tc01-types"
+            npm install ./setimmutable-*.tgz typescript@^5.9.0 expect-type@^1.4.0
+          else
+            cd "$RUNNER_TEMP/tc01-types"
+            npm install setimmutable typescript@^5.9.0 expect-type@^1.4.0
+          fi
+      - name: Run TC01 (types)
+        run: node_modules/.bin/tsc --noEmit -p tc01-types.tsconfig.json
+        working-directory: ${{ runner.temp }}/tc01-types
+
+  # Posts (or updates, on a later push to the same PR) one comment on the
+  # PR summarizing every job above -- only meaningful on a pull_request
+  # event (a bare push has no PR to comment on). `if: always()` so this
+  # still runs, and reports the failure, when tc/tc01-types fail instead
+  # of being skipped alongside them.
+  report:
+    name: Report test results
+    needs: [tc, tc01-types]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        # tc-result-TC02..TC06, one JSON file each, uploaded by the "tc"
+        # matrix job above with the real (continue-on-error-independent)
+        # outcome of each import-style step. If "tc" never ran or every
+        # leg was cancelled before its upload step, this directory just
+        # ends up empty -- handled below rather than failing the job.
+        continue-on-error: true
+        with:
+          pattern: tc-result-*
+          path: tc-results
+          merge-multiple: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - uses: oven-sh/setup-bun@v2
+      - name: Build and pack (dry run) for the file-listing section
+        # Same build the "tc" jobs use, but only to capture what a real
+        # `npm publish` would actually ship -- `--dry-run` skips writing
+        # the tarball to disk since nothing here installs it.
+        continue-on-error: true
+        run: |
+          npm run build
+          npm pack --dry-run --json > "$RUNNER_TEMP/pack.json"
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs')
+            const path = require('path')
+
+            const TC_ORDER = ['TC02', 'TC03', 'TC04', 'TC05', 'TC06']
+            const TC_COLUMN_LABEL = {
+              TC02: 'Node 6',
+              TC03: 'Node 10',
+              TC04: 'Node 12',
+              TC05: 'Node LTS',
+              TC06: 'Node Latest'
+            }
+
+            const resultsByTcId = {}
+            const resultsDir = 'tc-results'
+            if (fs.existsSync(resultsDir)) {
+              for (const file of fs.readdirSync(resultsDir)) {
+                if (!file.endsWith('.json')) continue
+                const data = JSON.parse(fs.readFileSync(path.join(resultsDir, file), 'utf8'))
+                resultsByTcId[data.tc_id] = data.results
+              }
+            }
+
+            const icon = (outcome) => ({
+              success: '✅',
+              failure: '❌',
+              skipped: '⏭️'
+            }[outcome] ?? '❓')
+
+            const cellsFor = (key) =>
+              TC_ORDER.map((tcId) => icon(resultsByTcId[tcId]?.[key])).join(' | ')
+
+            const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+            // Every syntax row stays a short, single-line label in the
+            // table itself -- the full behavior suite (~20 cases across
+            // the whole file) doesn't reduce to one, so its full script
+            // goes in its own <details> block *below* the table instead
+            // of bloating that row's cell.
+            const rows = [
+              ['Full behavior test suite', cellsFor('published')],
+              ['`require("setimmutable")`', cellsFor('require')],
+              ['`import "setimmutable"`', cellsFor('bare_import')],
+              ['`import "setimmutable/map"`', cellsFor('bare_import_map')],
+              ['`import setimmutable from "setimmutable"`', cellsFor('import_static')],
+              ['`(await import("setimmutable")).default`', cellsFor('import_dynamic')]
+            ]
+              .map(([syntax, cells]) => `| ${syntax} | ${cells} |`)
+              .join('\n')
+
+            const header = `| Syntax | ${TC_ORDER.map((tcId) => TC_COLUMN_LABEL[tcId]).join(' | ')} |`
+            const separator = `| --- | ${TC_ORDER.map(() => '---').join(' | ')} |`
+
+            // <br> instead of real newlines: a markdown table row has to
+            // stay on one physical source line -- not a constraint here
+            // since this sits below the table, but kept consistent with
+            // how <pre> needs its line breaks encoded either way.
+            // HTML-escaped since the script's own content ends up inside
+            // a <pre> tag.
+            const publishedScript = escapeHtml(
+              fs.readFileSync('test/integration/tc-published-package.js', 'utf8')
+            )
+              .split('\n')
+              .join('<br>')
+            const publishedScriptDetails = `\n\n<details>\n<summary>Full behavior test suite -- full script</summary>\n<pre>${publishedScript}</pre>\n</details>`
+
+            const { data: { jobs } } = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+              per_page: 100
+            })
+            const typesJob = jobs.find((job) => job.name.includes('types (tsc)'))
+            const typesLine = typesJob
+              ? `\n\nTypes (\`tsc\`, TC01 only): ${typesJob.conclusion === 'success' ? '✅' : '❌'} ${typesJob.conclusion}`
+              : ''
+
+            const legend = '\n\n❌ on an older Node version for an import/`await import()` syntax is a known, documented language-support gap (see README\'s "TypeScript"/CI notes), not a regression -- `require()` and the full behavior suite are expected to be ✅ everywhere.'
+
+            // What `npm publish` would actually ship -- captured by the
+            // "Build and pack (dry run)" step above via `npm pack
+            // --dry-run --json`. continue-on-error there, so a missing or
+            // unparsable file here just skips this section instead of
+            // failing the whole report.
+            let packSection = ''
+            try {
+              const packPath = path.join(process.env.RUNNER_TEMP, 'pack.json')
+              const [pkg] = JSON.parse(fs.readFileSync(packPath, 'utf8'))
+              const fileRows = pkg.files
+                .map((f) => `| \`${f.path}\` | ${f.size.toLocaleString()} B |`)
+                .join('\n')
+              packSection = `\n\n<details>\n<summary>Package contents (\`npm pack\`) -- ${pkg.entryCount} files, ${pkg.unpackedSize.toLocaleString()} B unpacked</summary>\n\n| File | Size |\n| --- | --- |\n${fileRows}\n\n</details>`
+            } catch {
+              // no-op: section omitted, see comment above.
+            }
+
+            const marker = '<!-- setimmutable-test-report -->'
+            const headSha = context.payload.pull_request.head.sha.slice(0, 7)
+            const body = `${marker}\n### Test results (${headSha})\n\n${header}\n${separator}\n${rows}${typesLine}${legend}${packSection}${publishedScriptDetails}\n`
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100
+            })
+            const existing = comments.find((comment) => comment.body?.includes(marker))
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body
+              })
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              })
+            }
