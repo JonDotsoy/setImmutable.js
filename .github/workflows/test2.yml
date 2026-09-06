@@ -32,17 +32,21 @@ jobs:
           cases: |
             // title: Static ESM import: import set from "setimmutable"
             import set from "setimmutable"
+            if (typeof set !== "function") throw new Error("set is not a function")
             set({}, "a.b.c", 1)
             ---
             // title: CommonJS require: const set = require("setimmutable")
             // type: commonjs
             const set = require("setimmutable")
+            if (typeof set !== "function") throw new Error("set is not a function")
             set({}, "a.b.c", 1)
             ---
             // title: Static ESM import with an array path
             import set from "setimmutable"
+            if (typeof set !== "function") throw new Error("set is not a function")
             set({}, ["a", "b", "c"], 1)
             ---
             // title: Dynamic ESM import: const { default: set } = await import("setimmutable")
             const { default: set } = await import("setimmutable")
+            if (typeof set !== "function") throw new Error("set is not a function")
             set({}, "a.b.c", 1)
