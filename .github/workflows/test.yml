@@ -258,24 +258,13 @@ jobs:
 
             const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-            // Every syntax here already fits on one line except the full
-            // behavior suite (~20 cases across the whole file) -- that one
-            // gets a short title plus a <details> collapse with the full
-            // script below it instead of trying to summarize it inline.
-            // (<br> instead of real newlines: a markdown table row has to
-            // stay on one physical source line. HTML-escaped since the
-            // script's own content ends up inside a <pre> tag.)
-            const publishedScript = escapeHtml(
-              fs.readFileSync('test/integration/tc-published-package.js', 'utf8')
-            )
-              .split('\n')
-              .join('<br>')
-
+            // Every syntax row stays a short, single-line label in the
+            // table itself -- the full behavior suite (~20 cases across
+            // the whole file) doesn't reduce to one, so its full script
+            // goes in its own <details> block *below* the table instead
+            // of bloating that row's cell.
             const rows = [
-              [
-                `**Full behavior test suite**<br><details><summary>Show full script</summary><br><pre>${publishedScript}</pre></details>`,
-                cellsFor('published')
-              ],
+              ['Full behavior test suite', cellsFor('published')],
               ['`require("setimmutable")`', cellsFor('require')],
               ['`import "setimmutable"`', cellsFor('bare_import')],
               ['`import "setimmutable/map"`', cellsFor('bare_import_map')],
@@ -287,6 +276,19 @@ jobs:
 
             const header = `| Syntax | ${TC_ORDER.map((tcId) => TC_COLUMN_LABEL[tcId]).join(' | ')} |`
             const separator = `| --- | ${TC_ORDER.map(() => '---').join(' | ')} |`
+
+            // <br> instead of real newlines: a markdown table row has to
+            // stay on one physical source line -- not a constraint here
+            // since this sits below the table, but kept consistent with
+            // how <pre> needs its line breaks encoded either way.
+            // HTML-escaped since the script's own content ends up inside
+            // a <pre> tag.
+            const publishedScript = escapeHtml(
+              fs.readFileSync('test/integration/tc-published-package.js', 'utf8')
+            )
+              .split('\n')
+              .join('<br>')
+            const publishedScriptDetails = `\n\n<details>\n<summary>Full behavior test suite -- full script</summary>\n<pre>${publishedScript}</pre>\n</details>`
 
             const { data: { jobs } } = await github.rest.actions.listJobsForWorkflowRun({
               owner: context.repo.owner,
@@ -303,7 +305,7 @@ jobs:
 
             const marker = '<!-- setimmutable-test-report -->'
             const headSha = context.payload.pull_request.head.sha.slice(0, 7)
-            const body = `${marker}\n### Test results (${headSha})\n\n${header}\n${separator}\n${rows}${typesLine}${legend}\n`
+            const body = `${marker}\n### Test results (${headSha})\n\n${header}\n${separator}\n${rows}${typesLine}${legend}${publishedScriptDetails}\n`
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
