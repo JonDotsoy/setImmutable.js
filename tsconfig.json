@@ -10,5 +10,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "test/types.test-d.ts"]
+  "include": [
+    "src/**/*.ts",
+    "test/types.test-d.ts",
+    "test/setImmutable2.test-d.ts"
+  ]
 }
