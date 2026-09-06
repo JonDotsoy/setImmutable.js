@@ -12,12 +12,12 @@ Using npm:
 In Node.js:
 
 ```javascript
-const set = require('setimmutable');
-// or, from an ES module:
-// import set from 'setimmutable'
+import set from 'setimmutable'
+// or, from CommonJS:
+// const set = require('setimmutable')
 ```
 
-`map` and `clone` are separate subpaths, resolvable the same way with either `require` or `import` — `require('setimmutable/map')`, `import 'setimmutable/map'`, etc. (`package.json`'s `"exports"` map is what makes the extension-less `import` form resolve; without it, Node's ESM resolver — unlike `require()` — won't infer `.js` on a bare subpath specifier).
+`map` and `clone` are separate subpaths, resolvable the same way with either `import` or `require` — `import map from 'setimmutable/map'`, `const clone = require('setimmutable/clone')`, etc. (`package.json`'s `"exports"` map is what makes the extension-less `import` form resolve; without it, Node's ESM resolver — unlike `require()` — won't infer `.js` on a bare subpath specifier).
 
 
 ## Mutable Vs. Immutable
@@ -28,8 +28,8 @@ That silent failure gets worse one level down: `Object.freeze` is **shallow**. I
 `setImmutable(object, path, value)` never assigns into `object`. Starting at the root, it clones each node it needs to descend through (see [Clone](#setimmutable-with-complex-constructors) below), sets `value` on the clone, and returns that new tree — so the result is always a distinct object, whether or not anything on `path` was frozen, and every branch not on `path` still keeps its original reference.
 
 ```javascript
-const set = require('lodash.set')
-const setImmutable = require('setimmutable')
+import set from 'lodash.set'
+import setImmutable from 'setimmutable'
 
 // Mutable: silently mutates in place, still returns the same reference.
 const mutableObj = Object.freeze({ a: { b: 1 } })
@@ -66,7 +66,7 @@ class ComplexConstructor {
 **Example:**
 
 ```javascript
-// const clone = require('setimmutable/clone')
+// import clone from 'setimmutable/clone'
 function customClone (objValue, srcValue) {
     switch (objValue.constructor) {
         // My custom class
@@ -111,13 +111,15 @@ set(object, '[0][1][2]', 'a')
 **Example 2 (on [RunKit](https://runkit.com/jondotsoy/setimmutable-example-2))**
 
 ```javascript
+// import clone from 'setimmutable/clone'
+
 const object = []
 
 function customClone (objValue, key) {
     switch (objValue.constructor) {
         case Person: return Person.clone(objValue)
         /* ... */
-        /* default: return require('setimmutable/clone')(objValue) */
+        /* default: return clone(objValue) */
     }
 }
 
@@ -126,7 +128,7 @@ set(object, '[0].people.[1].firstName', 'Lucky', customClone)
 ```
 
 ### `clone(value)`
-The default per-node clone used by `set` when no `customClone` is given: `require('setimmutable/clone')`. Returns a new, empty instance of `value.constructor` (`new value.constructor()`, or a plain `{}` if `value` has no constructor) — it does **not** copy `value`'s own properties; `set` does that separately with `Object.assign` after cloning. A custom clone function typically falls back to this for constructors it doesn't special-case (see Example 2 above and [SetImmutable with complex constructors](#setimmutable-with-complex-constructors)).
+The default per-node clone used by `set` when no `customClone` is given: `import clone from 'setimmutable/clone'`. Returns a new, empty instance of `value.constructor` (`new value.constructor()`, or a plain `{}` if `value` has no constructor) — it does **not** copy `value`'s own properties; `set` does that separately with `Object.assign` after cloning. A custom clone function typically falls back to this for constructors it doesn't special-case (see Example 2 above and [SetImmutable with complex constructors](#setimmutable-with-complex-constructors)).
 
 **Arguments**
 
@@ -137,7 +139,7 @@ The default per-node clone used by `set` when no `customClone` is given: `requir
 - ***(Object)***: A new, empty instance of `value`'s constructor.
 
 ### `map(object, mapping)`
-Applies several `set` updates to `object` in a single call: `require('setimmutable/map')`. `object` is still never mutated. `mapping` accepts three shapes:
+Applies several `set` updates to `object` in a single call: `import map from 'setimmutable/map'`. `object` is still never mutated. `mapping` accepts three shapes:
 
 **1. An array of `[path, value]` pairs** — each pair is applied in order with `set`, so a later path can see the result of an earlier one.
 
@@ -231,7 +233,7 @@ The outer array needs `as const` for TypeScript to see each entry as a real 2-tu
 **With SetImmutable:**
 
 ```javascript
-const set = require('setimmutable')
+import set from 'setimmutable'
 
 function Reducer (state = initialState, action) {
     switch (action.type) {
