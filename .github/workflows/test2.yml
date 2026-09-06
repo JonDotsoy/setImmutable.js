@@ -204,3 +204,9 @@ jobs:
             // lodash.setWith creates sparse arrays here (real holes, not
             // `null` elements) -- `[, x]` is a hole-preserving literal.
             assert.deepStrictEqual(result, { "0": [, [, , "a"]] })
+            ---
+            // title: Key-path: descending into an existing partial object ({ a: {} })
+            import set from "setimmutable"
+            const result = set({ a: {} }, "a.b.c", "hello")
+            expectTypeOf(result).toBeObject
+            assert.deepStrictEqual(result, { a: { b: { c: "hello" } } })
