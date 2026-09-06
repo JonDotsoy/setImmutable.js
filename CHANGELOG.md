@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file, derived from
 the git history of `package.json`'s `version` field.
 
-## [Unreleased] (since 0.1.9)
+## [0.2.0] - 2026-09-06
 
 - Add CI workflow (`tc01-types`, `tc` matrix TC02-TC06) that installs the
   published package from the npm registry and checks it on Node 6, 10, 12,
@@ -23,8 +23,14 @@ the git history of `package.json`'s `version` field.
   (`setImmutable.js`, `map.js`, `clone.js`) instead of source, tests, and CI
   config.
 - Rewrite the README: technical intro, documented `set()`/`map()`/`clone()`
-  API, import-first code examples, and an expanded explanation of why
-  SetImmutable pairs with Redux.
+  API, import-first code examples, an expanded explanation of why
+  SetImmutable pairs with Redux, and removal of the stale Travis CI badge.
+- Add an automated publish workflow: PRs that bump `package.json` get a
+  preview build on npm (dist-tag matching the version's prerelease
+  identifier, e.g. `rc`) and a GitHub Release linking to it; merging a
+  version bump to `master` publishes it for real (dist-tag `latest`) the
+  same way, with npm Trusted Publishing (OIDC, no stored token) and
+  provenance.
 
 ## [0.1.9] - 2017-02-22
 
