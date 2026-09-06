@@ -1,0 +1,34 @@
+name: Test2
+
+# Exercises the ./.github/actions/multi-engine-test custom action: it packs
+# this repo, then runs every "case" below (a code snippet importing
+# "setimmutable") against every "engine" below (a Node.js version or Bun),
+# and posts a syntax x engine results table as a PR comment.
+on:
+  pull_request:
+
+jobs:
+  multi-engine:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/multi-engine-test
+        with:
+          engines: |
+            node 6
+            node 12
+            node lts
+            bun latest
+          cases: |
+            import set from "setimmutable"
+            set({}, "a.b.c", 1)
+            ---
+            const set = require("setimmutable")
+            set({}, "a.b.c", 1)
+            ---
+            import set from "setimmutable"
+            set({}, ["a", "b", "c"], 1)
