@@ -49,7 +49,11 @@ for i in "${!CASES[@]}"; do
     label="$first_line"
     code_text="$case_text"
   fi
-  if echo "$code_text" | grep -qE '^\s*import '; then
+  # ESM if the case uses a static/bare `import` statement, or `await`
+  # anywhere (these cases are simple top-level scripts, so an `await` --
+  # e.g. `await import(...)` -- means top-level await, which itself only
+  # parses inside a real module) -- else CJS.
+  if echo "$code_text" | grep -qE '^\s*import[[:space:]]|\bawait\b'; then
     ext="mjs"
   else
     ext="js"

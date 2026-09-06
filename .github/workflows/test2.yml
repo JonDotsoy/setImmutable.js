@@ -37,3 +37,7 @@ jobs:
             // Static ESM import with an array path
             import set from "setimmutable"
             set({}, ["a", "b", "c"], 1)
+            ---
+            // Dynamic ESM import: const { default: set } = await import("setimmutable")
+            const { default: set } = await import("setimmutable")
+            set({}, "a.b.c", 1)
