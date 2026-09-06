@@ -25,27 +25,24 @@ jobs:
             node lts
             node latest
             bun latest
+          # Most cases below are ESM, so set the fallback here instead of
+          # repeating "// type: module" on each -- the one CommonJS case
+          # still declares its own "// type: commonjs" to override it.
+          default-type: module
           cases: |
             // title: Static ESM import: import set from "setimmutable"
-            // filename: static-import.mjs
-            // type: module
             import set from "setimmutable"
             set({}, "a.b.c", 1)
             ---
             // title: CommonJS require: const set = require("setimmutable")
-            // filename: require.js
             // type: commonjs
             const set = require("setimmutable")
             set({}, "a.b.c", 1)
             ---
             // title: Static ESM import with an array path
-            // filename: static-import-array-path.mjs
-            // type: module
             import set from "setimmutable"
             set({}, ["a", "b", "c"], 1)
             ---
             // title: Dynamic ESM import: const { default: set } = await import("setimmutable")
-            // filename: dynamic-import.mjs
-            // type: module
             const { default: set } = await import("setimmutable")
             set({}, "a.b.c", 1)

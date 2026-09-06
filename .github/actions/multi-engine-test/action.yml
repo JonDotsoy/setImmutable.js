@@ -24,8 +24,10 @@ inputs:
                                   code's own first line)
         // filename: <name>      the filename the case runs as (default:
                                   case-N.js or case-N.mjs)
-        // type: module|commonjs forces .mjs/.js (default: inferred from
-                                  a static/bare `import` or an `await`
+        // type: module|commonjs forces .mjs/.js (default: the
+                                  "default-type" input below, or -- if
+                                  that's unset too -- inferred from a
+                                  static/bare `import` or an `await`
                                   anywhere in the code, else CommonJS)
       e.g.:
         // title: Dynamic import
@@ -33,6 +35,13 @@ inputs:
         // type: module
         const { default: set } = await import("setimmutable")
     required: true
+  default-type:
+    description: >-
+      Fallback "module"/"commonjs" used for any case that doesn't declare
+      its own "// type:" comment, instead of inferring it from the case's
+      code. Leave unset to keep inferring per case.
+    required: false
+    default: ''
   github-token:
     description: Token used to read/post the PR comment.
     required: false
@@ -58,6 +67,7 @@ runs:
       env:
         ENGINES_INPUT: ${{ inputs.engines }}
         CASES_INPUT: ${{ inputs.cases }}
+        DEFAULT_TYPE: ${{ inputs.default-type }}
         TARBALL: ${{ runner.temp }}/setimmutable.tgz
       run: bash "${{ github.action_path }}/run-matrix.sh"
 

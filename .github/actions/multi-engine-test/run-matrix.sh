@@ -4,6 +4,9 @@
 # and writes a markdown results table to $GITHUB_OUTPUT as "table".
 set -uo pipefail
 
+# Optional; the "default-type" action input, empty when unset.
+DEFAULT_TYPE="${DEFAULT_TYPE:-}"
+
 WORK="$RUNNER_TEMP/multi-engine-test"
 rm -rf "$WORK"
 mkdir -p "$WORK"
@@ -67,27 +70,38 @@ for i in "${!CASES[@]}"; do
     fi
   done
   code_text="$remaining"
+  # Fallback chain: the case's own "// title:" comment, else its code's
+  # own first line.
   label="${title:-$(echo "$code_text" | sed -n '1p')}"
 
+  # Fallback chain for the effective type: the case's own "// type:"
+  # comment, else the action's "default-type" input, else inferred from
+  # a static/bare `import` statement or an `await` anywhere in the code
+  # (these are simple top-level scripts, so `await` -- e.g.
+  # `await import(...)` -- implies top-level await, which itself only
+  # parses inside a real module).
+  effective_type="${type:-$DEFAULT_TYPE}"
+  case "$effective_type" in
+    module) ext="mjs" ;;
+    commonjs) ext="js" ;;
+    *)
+      if echo "$code_text" | grep -qE '^\s*import[[:space:]]|\bawait\b'; then
+        ext="mjs"
+      else
+        ext="js"
+      fi
+      ;;
+  esac
+
+  # Fallback chain for the filename: the case's own "// filename:"
+  # comment, else a slug of its label (so it reads as e.g.
+  # "dynamic-esm-import.mjs" instead of "case-2.mjs"), else "case-N.ext"
+  # if the label doesn't yield anything sluggable.
   if [ -n "$filename" ]; then
     file_basename="$filename"
   else
-    case "$type" in
-      module) ext="mjs" ;;
-      commonjs) ext="js" ;;
-      *)
-        # No explicit type: infer from a static/bare `import` statement,
-        # or `await` anywhere (these are simple top-level scripts, so
-        # `await` -- e.g. `await import(...)` -- implies top-level
-        # await, which itself only parses inside a real module).
-        if echo "$code_text" | grep -qE '^\s*import[[:space:]]|\bawait\b'; then
-          ext="mjs"
-        else
-          ext="js"
-        fi
-        ;;
-    esac
-    file_basename="case-$i.$ext"
+    slug=$(echo "$label" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
+    file_basename="${slug:-case-$i}.$ext"
   fi
 
   file="$WORK/$file_basename"
