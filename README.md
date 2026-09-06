@@ -4,6 +4,16 @@
 
 **SetImmutable** performs the update as a persistent (structural-sharing) operation instead: it walks `path`, and for each node it visits it clones just that node and reassigns the property, then returns a **new root object**. Every object *not* on `path` keeps its original reference, so the result is a shallow copy at each level of the path and the same object everywhere else — cheaper than a deep clone, and `===` on unrelated branches still holds.
 
+## Features
+
+- **Immutable, structural-sharing updates** — [`set(object, path, value)`](#setobject-path-value-customclone) never mutates `object`. It clones only the nodes on `path` (root included) and returns a new tree; every branch not on `path` keeps its original reference, including through a frozen (`Object.freeze`) root. See [Mutable Vs. Immutable](#mutable-vs-immutable).
+- **Two path forms** — a dot-separated string (`'a.b.c'`) or an array of keys (`['a', 'b', 'c']`). Path parsing (splitting, and bracket/index syntax like `'[0][1]'`) is delegated to `lodash.setWith`, so index-like segments create arrays rather than plain objects — see [Example 1](#setobject-path-value-customclone).
+- **Missing intermediate segments are created**, as a plain object or an array (index-like next segment), same as `_.set`.
+- **Existing-but-non-object segments are left as-is, and the rest of that branch of `path` is silently dropped** — e.g. `set({ a: 1 }, 'a.b', 2)` returns a clone with `a` still `1`; there is nothing for `'b'` to clone into, so unlike mutable `_.set` (which overwrites `a` with `{ b: 2 }`), the assignment is a no-op past that point. Neither `customClone` nor the default `clone` is called for a non-object value — see the `[customClone]` argument below.
+- **Custom cloning for complex constructors** — an optional `customClone(objValue, key)` argument, called for every existing *object* node on `path` (except the leaf), to control how that node is cloned instead of the [default `clone`](#clonevalue). See [SetImmutable with complex constructors](#setimmutable-with-complex-constructors).
+- **Batched updates** via [`map(object, mapping)`](#mapobject-mapping) — apply several `set` calls to `object` in one pass, in any of three syntaxes (array of `[path, value]` pairs, a `set => {...}` callback, or a `set => (object literal)` callback).
+- **Path-aware TypeScript inference** — `set` and `map`'s array-of-pairs syntax are generic over `path`, so the compiler resolves the real shape of the result and catches a wrong value type at the exact key being set. This is only visible building from source (`src/*.ts`); the published package ships as untyped plain JS. See [TypeScript](#typescript) for its known limits (bracket/index string paths, `customClone`, and a 31-level path-depth ceiling).
+
 ## Installation
 Using npm:
 
