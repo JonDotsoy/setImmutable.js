@@ -1,17 +1,29 @@
 {
   "name": "setimmutable",
   "title": "SetImmutable",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "description": "An alternative to lodash.set when your object necessary working with immutable objects.",
   "main": "setImmutable.js",
+  "type": "commonjs",
+  "files": [
+    "setImmutable.js",
+    "map.js",
+    "clone.js"
+  ],
+  "exports": {
+    ".": "./setImmutable.js",
+    "./map": "./map.js",
+    "./clone": "./clone.js"
+  },
   "directories": {
     "lib": "src",
     "test": "test"
   },
   "scripts": {
-    "prepublish": "npm run build",
-    "build": "gulp build",
-    "test": "mocha"
+    "prepublishOnly": "npm run build",
+    "build": "bun build src/setImmutable.ts --outfile setImmutable.js --target node --format cjs --no-bundle && bun build src/map.ts --outfile map.js --target node --format cjs --no-bundle && bun build src/clone.ts --outfile clone.js --target node --format cjs --no-bundle",
+    "test": "bun node_modules/.bin/mocha",
+    "test:types": "tsc --noEmit"
   },
   "keywords": [
     "setimmutable",
@@ -24,20 +36,13 @@
     "lodash.setwith": "^4.3.2"
   },
   "devDependencies": {
-    "babel-preset-latest": "^6.22.0",
-    "babel-preset-stage-2": "^6.22.0",
     "debug": "^2.6.0",
     "deepfreeze": "^2.0.0",
+    "expect-type": "^1.4.0",
     "expect.js": "^0.3.1",
-    "gulp": "^3.9.1",
-    "gulp-babel": "^6.1.2",
-    "lodash.set": "^4.3.2"
-  },
-  "babel": {
-    "presets": [
-      "latest",
-      "stage-2"
-    ]
+    "lodash.set": "^4.3.2",
+    "mocha": "^10.0.0",
+    "typescript": "^5.9.0"
   },
   "repository": {
     "type": "git",
