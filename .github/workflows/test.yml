@@ -188,15 +188,26 @@ jobs:
               cancelled: '⏹️'
             }[conclusion] ?? '❌')
 
+            // The Jobs API's per-step "conclusion" does NOT distinguish a
+            // continue-on-error step's real pass/fail from the job's
+            // overall (tolerated) conclusion -- confirmed by comparing a
+            // real run's job log (a continue-on-error step that visibly
+            // exited 1) against this same API, which reported that step's
+            // conclusion as "success" too. So tolerated gaps are called
+            // out here by matching the known job names instead of trying
+            // to detect them from step data -- keep this in sync with the
+            // continue-on-error steps' own comments above.
+            const KNOWN_TOLERATED_GAPS = {
+              'TC01: smoke / install setimmutable (node 6, 2017)': 'no ESM support at all',
+              'TC02: smoke / install setimmutable (node 10, 2019)': 'no ESM support at all',
+              'TC03: smoke / install setimmutable (node 12, 2019)': 'dynamic import() lacks top-level await'
+            }
+
             const rows = jobs
               .filter((job) => job.name !== 'Report test results')
               .map((job) => {
-                // continue-on-error steps report their own "failure" here
-                // even when the job's overall conclusion is "success".
-                const tolerated = (job.steps ?? [])
-                  .filter((step) => step.conclusion === 'failure')
-                  .map((step) => step.name)
-                const note = tolerated.length > 0 ? ` (tolerated: ${tolerated.join(', ')})` : ''
+                const gap = job.conclusion === 'success' ? KNOWN_TOLERATED_GAPS[job.name] : undefined
+                const note = gap ? ` (tolerates known gaps: ${gap})` : ''
                 return `| ${job.name} | ${icon(job.conclusion)} ${job.conclusion}${note} |`
               })
               .join('\n')
