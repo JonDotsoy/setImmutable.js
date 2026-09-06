@@ -131,3 +131,33 @@ jobs:
                 l: { o: { t: set(2) } }
               }
             }))
+            ---
+            // title: Key-path: dot-separated string ("a.b.c")
+            import set from "setimmutable"
+            const result = set({}, "a.b.c", 1)
+            const expected = { a: { b: { c: 1 } } }
+            if (JSON.stringify(result) !== JSON.stringify(expected)) throw new Error("unexpected result: " + JSON.stringify(result))
+            ---
+            // title: Key-path: single string key ("a")
+            import set from "setimmutable"
+            const result = set({}, "a", 1)
+            const expected = { a: 1 }
+            if (JSON.stringify(result) !== JSON.stringify(expected)) throw new Error("unexpected result: " + JSON.stringify(result))
+            ---
+            // title: Key-path: array of string keys (["a", "b", "c"])
+            import set from "setimmutable"
+            const result = set({}, ["a", "b", "c"], 1)
+            const expected = { a: { b: { c: 1 } } }
+            if (JSON.stringify(result) !== JSON.stringify(expected)) throw new Error("unexpected result: " + JSON.stringify(result))
+            ---
+            // title: Key-path: array with a numeric index (["people", 0, "firstName"])
+            import set from "setimmutable"
+            const result = set({}, ["people", 0, "firstName"], "Ana")
+            const expected = { people: [{ firstName: "Ana" }] }
+            if (JSON.stringify(result) !== JSON.stringify(expected)) throw new Error("unexpected result: " + JSON.stringify(result))
+            ---
+            // title: Key-path: bracket/index string ("[0][1][2]")
+            import set from "setimmutable"
+            const result = set({}, "[0][1][2]", "a")
+            const expected = { "0": [null, [null, null, "a"]] }
+            if (JSON.stringify(result) !== JSON.stringify(expected)) throw new Error("unexpected result: " + JSON.stringify(result))
