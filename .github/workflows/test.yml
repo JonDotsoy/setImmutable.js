@@ -4,7 +4,7 @@ on:
   # push runs the tc/tc01-types/report jobs below (the actual behavior
   # test suite via mocha, plus tsc type tests). pull_request instead
   # runs only "multi-engine" (see its own `if:`), the engine/syntax
-  # compatibility matrix via ./.github/actions/multi-engine-test, which
+  # compatibility matrix via jondotsoy/action-greencase, which
   # posts its own PR comment -- kept as a separate job rather than a
   # separate workflow file since both live in this same Test workflow.
   push:
@@ -326,7 +326,7 @@ jobs:
               })
             }
 
-  # Exercises ./.github/actions/multi-engine-test: it packs this repo,
+  # Exercises jondotsoy/action-greencase: it packs this repo,
   # then runs every "case" below (a code snippet importing
   # "setimmutable") against every "engine" below (a Node.js version,
   # Bun, or a type-check-only TypeScript pass), and posts its own
@@ -342,8 +342,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ./.github/actions/multi-engine-test
+      - uses: jondotsoy/action-greencase@develop
         with:
+          build-command: npm run build
           engines: |
             node 6
             node 10
