@@ -1,0 +1,82 @@
+name: Publish (PR preview)
+
+# Publishes a throwaway prerelease of `setimmutable` to npm on every push to
+# an open PR, so reviewers can `npm install setimmutable@rc` and try the
+# exact code in the PR. Uses npm Trusted Publishing (OIDC) -- no NPM_TOKEN
+# secret involved, see https://docs.npmjs.com/trusted-publishers.
+#
+# package.json's committed version (e.g. "0.2.0-rc.1") is only the base:
+# npm publish is a one-shot per version -- the registry rejects a second
+# publish of a version that already exists (E403/E409) -- so a fixed
+# version would only work for the PR's first push. Instead this appends the
+# run number (monotonically increasing, unique per workflow run) as the
+# real prerelease number, so every push gets a fresh, publishable version.
+#
+# The dist-tag is inferred from that same prerelease identifier, not
+# hardcoded: "0.2.0-rc.1" publishes under "rc", "0.2.0-beta.2" would
+# publish under "beta", and a plain release version with no prerelease
+# identifier (e.g. "0.1.0") publishes under "latest".
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # Forked PRs don't get an OIDC token for this repo's trusted publisher
+    # (and shouldn't -- anyone could open one otherwise), so skip them
+    # instead of failing loudly.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          registry-url: https://registry.npmjs.org
+
+      - uses: oven-sh/setup-bun@v2
+
+      # Trusted Publishing (OIDC) needs npm 11.5.1+; the Node LTS-bundled
+      # npm may be older.
+      - name: Ensure npm supports Trusted Publishing
+        run: npm install -g npm@latest
+
+      - name: Set unique PR-preview version and dist-tag
+        run: |
+          RAW_VERSION=$(node -e "console.log(require('./package.json').version)")
+          if [[ "$RAW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-([A-Za-z]+)(\.[0-9]+)?$ ]]; then
+            TAG="${BASH_REMATCH[1]}"
+            BASE_VERSION="${RAW_VERSION%-*}"
+            VERSION="${BASE_VERSION}-${TAG}.${{ github.run_number }}"
+          else
+            TAG="latest"
+            VERSION="$RAW_VERSION"
+          fi
+          npm pkg set version="$VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "Publishing $VERSION under dist-tag $TAG"
+
+      - name: Publish
+        run: npm publish --tag "$TAG"
+
+      # GitHub has no notion of a package's own version history, so a
+      # Release is the closest thing to a changelog entry for this
+      # PR-preview build -- linking straight to the npm page saves anyone
+      # digging through Actions logs to find what got published.
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v$VERSION" \
+            --target "${{ github.sha }}" \
+            --title "v$VERSION" \
+            --prerelease \
+            --notes "PR preview build from #${{ github.event.pull_request.number }}.
+
+          npm: https://www.npmjs.com/package/setimmutable/v/$VERSION"
