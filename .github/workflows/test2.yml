@@ -22,6 +22,7 @@ jobs:
             node 6
             node 12
             node lts
+            node latest
             bun latest
           cases: |
             // Static ESM import: import set from "setimmutable"
