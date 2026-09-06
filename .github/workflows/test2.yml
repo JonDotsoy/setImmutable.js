@@ -29,40 +29,32 @@ jobs:
           # repeating "// type: module" on each -- the one CommonJS case
           # still declares its own "// type: commonjs" to override it.
           default-type: module
-          # Every case uses Node's built-in "assert" module to validate
-          # itself -- imported/required *without* the "node:" prefix,
-          # since that scheme isn't recognized until Node 14.18/16
-          # (node 6/10/12 in the matrix above would otherwise fail on
-          # the assert import itself, not on what's actually being
-          # tested).
+          # Every generated file gets Node's built-in "assert" module
+          # injected automatically as `assert` -- a case just calls
+          # assert.* without ever importing/requiring it itself.
           cases: |
             // title: Static ESM import: import set from "setimmutable"
-            import assert from "assert"
             import set from "setimmutable"
             assert.strictEqual(typeof set, "function")
             set({}, "a.b.c", 1)
             ---
             // title: CommonJS require: const set = require("setimmutable")
             // type: commonjs
-            const assert = require("assert")
             const set = require("setimmutable")
             assert.strictEqual(typeof set, "function")
             set({}, "a.b.c", 1)
             ---
             // title: Static ESM import with an array path
-            import assert from "assert"
             import set from "setimmutable"
             assert.strictEqual(typeof set, "function")
             set({}, ["a", "b", "c"], 1)
             ---
             // title: Dynamic ESM import: const { default: set } = await import("setimmutable")
-            import assert from "assert"
             const { default: set } = await import("setimmutable")
             assert.strictEqual(typeof set, "function")
             set({}, "a.b.c", 1)
             ---
             // title: Map: static ESM import + array-of-pairs mapping
-            import assert from "assert"
             import map from "setimmutable/map"
             assert.strictEqual(typeof map, "function")
             map({}, [
@@ -71,7 +63,6 @@ jobs:
             ])
             ---
             // title: Map: static ESM import + imperative callback mapping
-            import assert from "assert"
             import map from "setimmutable/map"
             assert.strictEqual(typeof map, "function")
             map({}, (set) => {
@@ -80,7 +71,6 @@ jobs:
             })
             ---
             // title: Map: static ESM import + object-literal callback mapping
-            import assert from "assert"
             import map from "setimmutable/map"
             assert.strictEqual(typeof map, "function")
             map({}, (set) => ({
@@ -92,7 +82,6 @@ jobs:
             ---
             // title: Map: CommonJS require + array-of-pairs mapping
             // type: commonjs
-            const assert = require("assert")
             const map = require("setimmutable/map")
             assert.strictEqual(typeof map, "function")
             map({}, [
@@ -102,7 +91,6 @@ jobs:
             ---
             // title: Map: CommonJS require + imperative callback mapping
             // type: commonjs
-            const assert = require("assert")
             const map = require("setimmutable/map")
             assert.strictEqual(typeof map, "function")
             map({}, (set) => {
@@ -112,7 +100,6 @@ jobs:
             ---
             // title: Map: CommonJS require + object-literal callback mapping
             // type: commonjs
-            const assert = require("assert")
             const map = require("setimmutable/map")
             assert.strictEqual(typeof map, "function")
             map({}, (set) => ({
@@ -123,7 +110,6 @@ jobs:
             }))
             ---
             // title: Map: dynamic ESM import + array-of-pairs mapping
-            import assert from "assert"
             const { default: map } = await import("setimmutable/map")
             assert.strictEqual(typeof map, "function")
             map({}, [
@@ -132,7 +118,6 @@ jobs:
             ])
             ---
             // title: Map: dynamic ESM import + imperative callback mapping
-            import assert from "assert"
             const { default: map } = await import("setimmutable/map")
             assert.strictEqual(typeof map, "function")
             map({}, (set) => {
@@ -141,7 +126,6 @@ jobs:
             })
             ---
             // title: Map: dynamic ESM import + object-literal callback mapping
-            import assert from "assert"
             const { default: map } = await import("setimmutable/map")
             assert.strictEqual(typeof map, "function")
             map({}, (set) => ({
@@ -152,31 +136,26 @@ jobs:
             }))
             ---
             // title: Key-path: dot-separated string ("a.b.c")
-            import assert from "assert"
             import set from "setimmutable"
             const result = set({}, "a.b.c", 1)
             assert.deepStrictEqual(result, { a: { b: { c: 1 } } })
             ---
             // title: Key-path: single string key ("a")
-            import assert from "assert"
             import set from "setimmutable"
             const result = set({}, "a", 1)
             assert.deepStrictEqual(result, { a: 1 })
             ---
             // title: Key-path: array of string keys (["a", "b", "c"])
-            import assert from "assert"
             import set from "setimmutable"
             const result = set({}, ["a", "b", "c"], 1)
             assert.deepStrictEqual(result, { a: { b: { c: 1 } } })
             ---
             // title: Key-path: array with a numeric index (["people", 0, "firstName"])
-            import assert from "assert"
             import set from "setimmutable"
             const result = set({}, ["people", 0, "firstName"], "Ana")
             assert.deepStrictEqual(result, { people: [{ firstName: "Ana" }] })
             ---
             // title: Key-path: bracket/index string ("[0][1][2]")
-            import assert from "assert"
             import set from "setimmutable"
             const result = set({}, "[0][1][2]", "a")
             // lodash.setWith creates sparse arrays here (real holes, not

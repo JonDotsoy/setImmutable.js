@@ -17,9 +17,12 @@ inputs:
       Code snippets to run, one per "case". Separate cases with a line
       containing only "---". Each case is executed as a standalone script
       against every engine above, with "setimmutable" installed from the
-      tarball this action builds. A case can lead with any of these
-      "// key: value" metadata comments, in any order -- each is stripped
-      before the code runs, so a case never has to also be valid syntax:
+      tarball this action builds, and Node's built-in "assert" module
+      already available as `assert` -- injected into the generated file,
+      opaque to the case, which never imports/requires it itself. A case
+      can lead with any of these "// key: value" metadata comments, in
+      any order -- each is stripped before the code runs, so a case
+      never has to also be valid syntax:
         // title: <label>        results-table label (default: the
                                   code's own first line)
         // filename: <name>      the filename the case runs as (default:

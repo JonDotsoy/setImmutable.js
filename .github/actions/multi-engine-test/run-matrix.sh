@@ -44,6 +44,7 @@ CASES+=("$current")
 #   // type: module|commonjs -- forces .mjs/.js (default: inferred, see below)
 CASE_FILES=()
 CASE_LABELS=()
+CASE_CODE=()
 for i in "${!CASES[@]}"; do
   case_text="${CASES[$i]}"
   title=""
@@ -104,10 +105,21 @@ for i in "${!CASES[@]}"; do
     file_basename="${slug:-case-$i}.$ext"
   fi
 
+  # Every generated file gets Node's built-in "assert" injected as
+  # "assert", opaque to the case itself -- a case just uses `assert.*`
+  # without ever importing/requiring it. Bare "assert" (no "node:"
+  # prefix) so it also resolves pre-Node-14.18/16.
+  if [ "$ext" = "mjs" ]; then
+    assert_prelude='import assert from "assert"'
+  else
+    assert_prelude='const assert = require("assert")'
+  fi
+
   file="$WORK/$file_basename"
-  printf '%s\n' "$code_text" > "$file"
+  { printf '%s\n\n' "$assert_prelude"; printf '%s\n' "$code_text"; } > "$file"
   CASE_FILES+=("$file")
   CASE_LABELS+=("$label")
+  CASE_CODE+=("$code_text")
 done
 
 # Composite action steps run bash with --noprofile --norc, so ~/.bashrc
@@ -247,7 +259,10 @@ done
     echo "<summary>Case $((i + 1)): ${CASE_LABELS[$i]}</summary>"
     echo
     echo '```js'
-    cat "${CASE_FILES[$i]}"
+    # The case's own code, not the file that actually ran -- the
+    # injected "assert" import stays an implementation detail, not
+    # part of what the case declares.
+    printf '%s\n' "${CASE_CODE[$i]}"
     echo '```'
     echo
     echo "</details>"
