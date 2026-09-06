@@ -237,6 +237,10 @@ The outer array needs `as const` for TypeScript to see each entry as a real 2-tu
 
 ## SetImmutable with [Redux][redux]
 
+A Redux reducer must never mutate `state` and must return a **new** top-level object on every update — that's what lets `connect`/`useSelector` skip re-rendering components whose slice of the tree didn't change, by comparing references (`===`) instead of deep-diffing on every dispatch. Reaching into a nested array to update one field, by hand, without mutating anything on the way there, means manually spreading every level from the root down to that field — as the "Without SetImmutable" reducer below has to. Get one level wrong (a missed `...`, a `.map()` that mutates in place) and the mutation either doesn't show up (if you copied too much) or silently corrupts a sibling reducer relies on (if you copied too little).
+
+`setImmutable(state, path, value)` does that walk for you, and only clones the branch actually on `path`: every other entry in `state.people`, and every other top-level key in `state`, keeps its exact original reference, so a selector reading any of that still sees `===` on the next render, same as if nothing had dispatched at all.
+
 **With SetImmutable:**
 
 ```javascript
