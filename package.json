@@ -5,6 +5,11 @@
   "description": "An alternative to lodash.set when your object necessary working with immutable objects.",
   "main": "setImmutable.js",
   "type": "commonjs",
+  "files": [
+    "setImmutable.js",
+    "map.js",
+    "clone.js"
+  ],
   "exports": {
     ".": "./setImmutable.js",
     "./map": "./map.js",
