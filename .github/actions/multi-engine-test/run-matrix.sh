@@ -49,6 +49,14 @@ for i in "${!CASES[@]}"; do
   CASE_LABELS+=("$label")
 done
 
+# Composite action steps run bash with --noprofile --norc, so ~/.bashrc
+# (where a preinstalled nvm normally wires up $NVM_DIR / the `nvm`
+# function) never gets sourced -- bootstrap our own nvm explicitly
+# rather than depend on that.
+export NVM_DIR="$HOME/.nvm"
+if [ ! -s "$NVM_DIR/nvm.sh" ]; then
+  curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash >/dev/null 2>&1
+fi
 nvm_sh="$NVM_DIR/nvm.sh"
 
 install_node() {
@@ -131,7 +139,11 @@ for engine in "${ENGINES[@]}"; do
   fi
 
   for i in "${!CASE_FILES[@]}"; do
-    file="${CASE_FILES[$i]}"
+    # Node/Bun resolve `require`/`import` relative to the *file's own*
+    # directory, not the process cwd -- so the case file has to actually
+    # live next to the engine's node_modules, not just be run from there.
+    file="$engine_dir/$(basename "${CASE_FILES[$i]}")"
+    cp "${CASE_FILES[$i]}" "$file"
     if [ "$deps_ok" -ne 0 ]; then
       RESULTS["$i|$engine"]="❌"
       continue
