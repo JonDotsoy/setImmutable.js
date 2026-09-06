@@ -132,13 +132,45 @@ expectTypeOf(r5['list[1]']).toEqualTypeOf<string>()
 // -- map(object, mapping) ----------------------------------------------------
 
 expectTypeOf(map).toBeFunction()
-expectTypeOf(map).parameters.toEqualTypeOf<[any, any]>()
 
-// Syntax 1: an array of [path, value] pairs.
-expectTypeOf(map).toBeCallableWith({}, [
-  [['a', 'b', 'c'], 1],
-  ['a.b.d', 2]
-])
+// -- Syntax 1 (array of [path, value] pairs): typed, same as set() above --
+// folds SetImmutableResult over each pair in order. The outer array
+// needs `as const` for MapPairs to see each entry as a 2-tuple rather
+// than a widened array (without it, the pairs don't decompose and the
+// object's type passes through unchanged) -- but `as const` also
+// literal-narrows a plain value like 'foo' to the literal type "foo",
+// so an explicit `as <Type>` on the value (as below) is how to keep it
+// widened to the type that actually matters for these assertions.
+
+// simple: a single pair.
+type MapA = { a: number }
+const mapA: MapA = { a: 1 }
+
+const m1 = map(mapA, [['a', 'foo' as string]] as const)
+expectTypeOf(m1.a).toEqualTypeOf<string>()
+
+// complex: several pairs in one call, touching different (including
+// nested and newly-created) paths, mixing the dot-string and
+// array-of-keys forms -- later pairs see the type left by earlier ones.
+// ('d.e' creating a new key alongside 'a' and 'c' -- both already on the
+// object -- catches the same "creating a key drops the object's other
+// properties" bug that a purely-empty-object create test wouldn't.)
+type MapNested = { a: { b: number }, c: number }
+const mapNested: MapNested = { a: { b: 1 }, c: 2 }
+
+const m2 = map(mapNested, [
+  ['a.b', 'x' as string],
+  [['c'], 'y' as string],
+  ['d.e', 1 as number]
+] as const)
+expectTypeOf(m2.a.b).toEqualTypeOf<string>()
+expectTypeOf(m2.c).toEqualTypeOf<string>()
+expectTypeOf(m2.d.e).toEqualTypeOf<number>()
+
+// -- Syntax 2 & 3 (mapper functions): can't be typed the same way -- there's
+// no way to statically know which paths a callback's set() calls will
+// report at runtime, so these stay loose/any (see MapPairs's doc comment
+// in src/map.ts).
 
 // Syntax 2: a mapper function that calls set(path, value) directly.
 expectTypeOf(map).toBeCallableWith({}, (set: (...args: unknown[]) => unknown) => {
@@ -150,9 +182,6 @@ expectTypeOf(map).toBeCallableWith({}, (set: (...args: unknown[]) => unknown) =>
 expectTypeOf(map).toBeCallableWith({}, (set: (value: unknown) => unknown) => ({
   a: {b: {c: set(1)}}
 }))
-
-// Output: still `any` for the same reason as set()'s return above.
-expectTypeOf(map).returns.toBeAny()
 
 // -- clone(value) -------------------------------------------------------------
 

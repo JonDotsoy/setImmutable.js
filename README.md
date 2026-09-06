@@ -183,7 +183,7 @@ map(object, set => ({
 
 ## TypeScript
 
-The published `set`/`map`/`clone` entry points ship as plain JavaScript with no `.d.ts` — `require`/`import`ing them from the npm package still resolves every parameter and the return type to `any`, since there's no declaration file for the compiler to check `path` or the result against. The source itself (`src/*.ts`), however, is real TypeScript, and `set` (`src/setImmutable.ts`) is generic and `path`-aware: it resolves the actual shape of the result at the type level, so the compiler catches a wrong value type at the exact key you're setting — this is visible if you build from source, but not yet if you consume the published package (there's no build step that emits and publishes a `.d.ts` today).
+The published `set`/`map`/`clone` entry points ship as plain JavaScript with no `.d.ts` — `require`/`import`ing them from the npm package still resolves every parameter and the return type to `any`, since there's no declaration file for the compiler to check `path` or the result against. The source itself (`src/*.ts`), however, is real TypeScript, and both `set` (`src/setImmutable.ts`) and `map`'s array-of-pairs syntax (`src/map.ts`) are generic and `path`-aware: they resolve the actual shape of the result at the type level, so the compiler catches a wrong value type at the exact key you're setting — this is visible if you build from source, but not yet if you consume the published package (there's no build step that emits and publishes a `.d.ts` today).
 
 ```typescript
 import setImmutable from './src/setImmutable'
@@ -197,16 +197,34 @@ const result = setImmutable(a, 'a', 'foo')
 result.a.toUpperCase() // ok, TypeScript knows result.a is a string
 ```
 
-It supports the same two path forms as `set`, minus their bracket/index string syntax:
+Both `set` and `map`'s array-of-pairs syntax support the same two path forms, minus their bracket/index string syntax:
 
 - **Dot-separated string paths** — `'a.b.c'`, including segments that don't exist yet on the input type (they're typed as newly created).
 - **Array-of-keys paths** — `['a', 'b', 'c']`.
+
+`map`'s array-of-pairs syntax folds this inference across every pair in order, so later pairs see the type left by earlier ones:
+
+```typescript
+import map from './src/map'
+
+type Obj = { a: { b: number }, c: number }
+const obj: Obj = { a: { b: 1 }, c: 2 }
+
+const result = map(obj, [
+  ['a.b', 'x' as string],
+  [['c'], 'y' as string],
+] as const)
+// result: { a: { b: string }, c: string }
+```
+
+The outer array needs `as const` for TypeScript to see each entry as a real 2-tuple rather than a widened array — without it, the pairs don't decompose and the object's type passes through unchanged. `as const` also literal-narrows a plain value like `'x'` to the literal type `"x"`, which is rarely what you want; an explicit `as string` (as above) keeps it widened. `map`'s other two syntaxes (`set => { ... }` and `set => ({...})`) aren't typed at all — there's no way to statically know which paths a callback's `set()` calls will report at runtime.
 
 **Known limits**
 
 - **Bracket/index paths in string form aren't parsed.** `'list[1]'` or `'a[2].b'` are treated as one opaque literal key instead of indexing into an array, so the inferred type is wrong for that path form. Use the array-of-keys form (`['list', 1]`) to get real inference into arrays.
 - **`customClone` isn't typed.** Since it can construct an arbitrary object at runtime, there's no way to reflect its effect on the result type; the shape at that node falls back to whatever `customClone`'s own return type is inferred as.
 - **Path depth is capped by TypeScript's own recursion limit, not by the library.** The type resolves correctly up to **31 levels deep** (`'a.b.c. ... '`, 31 segments) for both path forms; a 32nd level hits TypeScript's `Type instantiation is excessively deep and possibly infinite` error. That ceiling is inherent to how the type recurses (each level wraps the recursive call in `Omit<T, K> & Record<K, ...>`, which isn't a tail call TypeScript can optimize away) — a genuinely tail-recursive type in TypeScript can go far deeper (~999 levels), but reworking `SetPath` into that shape hasn't been done here. In practice 31 levels is far beyond any object shape this library has ever been used with; the *runtime* has no such limit at any depth.
+- **`map`'s two function-based syntaxes stay untyped.** Only the array-of-pairs syntax is inferred; a mapper function's `set()` calls can't be tracked statically.
 
 ## SetImmutable with [Redux][redux]
 
