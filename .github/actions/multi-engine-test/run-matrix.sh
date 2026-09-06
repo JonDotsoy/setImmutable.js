@@ -33,19 +33,30 @@ done <<< "$CASES_INPUT"
 CASES+=("$current")
 
 # --- Write each case to its own file (ESM if it uses `import`, else CJS) ---
+# A case's own first line can be a "// Title" comment giving it a short
+# summary for the results table -- stripped from the code before it
+# runs, so it never has to also be valid syntax to execute. Without one,
+# the code's own first line is used as the label, same as before.
 CASE_FILES=()
 CASE_LABELS=()
 for i in "${!CASES[@]}"; do
   case_text="${CASES[$i]}"
-  if echo "$case_text" | grep -qE '^\s*import '; then
+  first_line=$(echo "$case_text" | sed -n '1p')
+  if [[ "$first_line" =~ ^//[[:space:]]*(.+)$ ]]; then
+    label="${BASH_REMATCH[1]}"
+    code_text=$(echo "$case_text" | tail -n +2)
+  else
+    label="$first_line"
+    code_text="$case_text"
+  fi
+  if echo "$code_text" | grep -qE '^\s*import '; then
     ext="mjs"
   else
     ext="js"
   fi
   file="$WORK/case-$i.$ext"
-  printf '%s\n' "$case_text" > "$file"
+  printf '%s\n' "$code_text" > "$file"
   CASE_FILES+=("$file")
-  label=$(echo "$case_text" | sed -n '1p')
   CASE_LABELS+=("$label")
 done
 
@@ -183,7 +194,7 @@ done
   echo
   for i in "${!CASE_FILES[@]}"; do
     echo "<details>"
-    echo "<summary>Case $((i + 1)) source</summary>"
+    echo "<summary>Case $((i + 1)): ${CASE_LABELS[$i]}</summary>"
     echo
     echo '```js'
     cat "${CASE_FILES[$i]}"
