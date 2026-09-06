@@ -23,7 +23,7 @@ env:
   # (it used to crash with "ReferenceError: primordials is not defined"
   # on Node 12+, since graceful-fs's "natives" hack into Node's internal
   # fs.js broke there).
-  PACKAGE_SOURCE: pack
+  PACKAGE_SOURCE: npm
 
 jobs:
   # TC02-TC06 all run test/integration/tc-published-package.js (shared
