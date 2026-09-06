@@ -11,9 +11,19 @@ function _cloneObj (objValue: any, srcValue?: any, customizerCloneObject?: Custo
       : defaultCloneObject(objValue, srcValue)
 
     return Object.assign(newBaseObject, objValue)
-  } else {
-    return objValue
   }
+
+  // objValue is a primitive (e.g. a number, string, boolean...) -- there is
+  // nothing to clone into by default, so the default clone leaves it as-is
+  // (see README's "Existing-but-non-object segments" feature). customClone
+  // still gets a chance to replace it with an object, opting into the path
+  // descending further instead of silently stopping there -- see README's
+  // "SetImmutable with complex constructors" for an example.
+  if (customizerCloneObject instanceof Function) {
+    return customizerCloneObject(objValue, srcValue)
+  }
+
+  return objValue
 }
 
 function setImmutable<T, P extends string | readonly (string | number)[], V> (

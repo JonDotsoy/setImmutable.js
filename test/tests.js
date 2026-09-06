@@ -110,6 +110,27 @@ describe('setImmutable', () => {
     expect(nextObject.a.b).to.be(undefined)
   })
 
+  it('with customClone replacing a primitive value to allow the path to continue', () => {
+    // Same starting point as the previous test (`a` is a number), but this
+    // customClone opts a primitive into becoming an object, so 'a.b' has
+    // somewhere to land instead of silently no-oping.
+    const object = { a: 1 }
+
+    deepFreeze(object)
+
+    function customClone (objValue, srcValue) {
+      if (typeof objValue === 'number') return {}
+      return clone(objValue, srcValue)
+    }
+
+    const nextObject = setImmutable(object, 'a.b', 2, customClone)
+
+    expect(nextObject).not.to.be(object)
+    expect(nextObject.a).not.to.be(1)
+    expect(nextObject.a.b).to.be(2)
+    expect(object.a).to.be(1)
+  })
+
   describe('mapping set immutables', () => {
     it('Syntax 1', () => {
       const prevObj = {}

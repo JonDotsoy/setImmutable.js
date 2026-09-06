@@ -9,8 +9,8 @@
 - **Immutable, structural-sharing updates** — [`set(object, path, value)`](#setobject-path-value-customclone) never mutates `object`. It clones only the nodes on `path` (root included) and returns a new tree; every branch not on `path` keeps its original reference, including through a frozen (`Object.freeze`) root. See [Mutable Vs. Immutable](#mutable-vs-immutable).
 - **Two path forms** — a dot-separated string (`'a.b.c'`) or an array of keys (`['a', 'b', 'c']`). Path parsing (splitting, and bracket/index syntax like `'[0][1]'`) is delegated to `lodash.setWith`, so index-like segments create arrays rather than plain objects — see [Example 1](#setobject-path-value-customclone).
 - **Missing intermediate segments are created**, as a plain object or an array (index-like next segment), same as `_.set`.
-- **Existing-but-non-object segments are left as-is, and the rest of that branch of `path` is silently dropped** — e.g. `set({ a: 1 }, 'a.b', 2)` returns a clone with `a` still `1`; there is nothing for `'b'` to clone into, so unlike mutable `_.set` (which overwrites `a` with `{ b: 2 }`), the assignment is a no-op past that point. Neither `customClone` nor the default `clone` is called for a non-object value — see the `[customClone]` argument below.
-- **Custom cloning for complex constructors** — an optional `customClone(objValue, key)` argument, called for every existing *object* node on `path` (except the leaf), to control how that node is cloned instead of the [default `clone`](#clonevalue). See [SetImmutable with complex constructors](#setimmutable-with-complex-constructors).
+- **Existing-but-non-object segments are left as-is by default, and the rest of that branch of `path` is silently dropped** — e.g. `set({ a: 1 }, 'a.b', 2)` returns a clone with `a` still `1`; the default clone has nothing to clone into, so unlike mutable `_.set` (which overwrites `a` with `{ b: 2 }`), the assignment is a no-op past that point. `customClone` can opt a primitive into becoming an object instead, letting the path continue — see [Replacing a primitive value with an object](#replacing-a-primitive-value-with-an-object).
+- **Custom cloning for complex constructors** — an optional `customClone(objValue, key)` argument, called for every existing node on `path` (except the leaf, object or not), to control how that node is cloned instead of the [default `clone`](#clonevalue). See [SetImmutable with complex constructors](#setimmutable-with-complex-constructors).
 - **Batched updates** via [`map(object, mapping)`](#mapobject-mapping) — apply several `set` calls to `object` in one pass, in any of three syntaxes (array of `[path, value]` pairs, a `set => {...}` callback, or a `set => (object literal)` callback).
 - **Path-aware TypeScript inference** — `set` and `map`'s array-of-pairs syntax are generic over `path`, so the compiler resolves the real shape of the result and catches a wrong value type at the exact key being set. This is only visible building from source (`src/*.ts`); the published package ships as untyped plain JS. See [TypeScript](#typescript) for its known limits (bracket/index string paths, `customClone`, and a 31-level path-depth ceiling).
 
@@ -92,6 +92,30 @@ function customClone (objValue, srcValue) {
 setImmutable(originalObject, path, newValue, customClone)
 ```
 
+### Replacing a primitive value with an object
+
+Without `customClone`, the default clone leaves a primitive value (a `number`, `string`, `boolean`, ...) as-is -- there's nothing to clone into, so the rest of the path is silently dropped (see [Features](#features)):
+
+```javascript
+const object = { a: 1 }
+
+set(object, 'a.b', 2)
+// => { a: 1 } -- `a` is still 1, `b` was never set
+```
+
+`customClone` gets a chance to opt a primitive into becoming an object instead, letting the path continue past it -- it's called with that primitive as `objValue`, and whatever it returns replaces the node:
+
+```javascript
+function customClone (objValue, srcValue) {
+    if (typeof objValue === 'number') return {}
+    // fall back to the default clone for anything already an object
+    return clone(objValue, srcValue)
+}
+
+set(object, 'a.b', 2, customClone)
+// => { a: { b: 2 } }
+```
+
 ## API
 
 ### `set(object, path, value, [customClone])`
@@ -104,7 +128,7 @@ Sets `value` at `path` of `object`. If a portion of `path` doesn't exist, it's c
 - **object (*Object*)**: The object to read from. Never mutated.
 - **path (*Array*|*string*)**: The path of the property to set.
 - **value (*)**: The value to set.
-- **[customClone] (*Function*)**: `(objValue, key) => Object`, called for every existing object on `path` except the leaf — `objValue` is the current value at that node, `key` the property name about to be assigned in the clone. Return the object to clone into. Only called when `objValue` already exists as an object; missing intermediate segments are always created as a plain object/array regardless of `customClone`. Defaults to [`clone`](#clonevalue) below.
+- **[customClone] (*Function*)**: `(objValue, key) => Object`, called for every existing node on `path` except the leaf — `objValue` is the current value at that node (object or primitive), `key` the property name about to be assigned in the clone. Return the object to clone into. Missing intermediate segments are always created as a plain object/array regardless of `customClone`. Given an object, the default clone ([`clone`](#clonevalue) below) returns a new, empty instance of its constructor; given a primitive, the default clone leaves it as-is, dropping the rest of the path (see [Replacing a primitive value with an object](#replacing-a-primitive-value-with-an-object)).
 
 **Returns**
 
