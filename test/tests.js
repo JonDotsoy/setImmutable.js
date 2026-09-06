@@ -79,7 +79,57 @@ describe('setImmutable', () => {
     expect(nextObject.prop1.prop1_1.arg2.b).to.be(originalObj.prop1.prop1_1.arg2.b)
   })
 
-  it.skip('set immutables', () => {})
+  it('with bracket/index string path', () => {
+    const object = {}
+
+    deepFreeze(object)
+
+    const nextObject = setImmutable(object, '[0][1][2]', 'a')
+
+    expect(nextObject).not.to.be(object)
+    expect(JSON.stringify(nextObject)).to.be(JSON.stringify({ '0': [null, [null, null, 'a']] }))
+    expect(Array.isArray(nextObject['0'])).to.be(true)
+    expect(Array.isArray(nextObject['0'][1])).to.be(true)
+    expect(nextObject['0'][1][2]).to.be('a')
+  })
+
+  it('with a path descending through a primitive value', () => {
+    // `a` is a number, not an object -- there is nothing for 'a.b' to
+    // descend into. The default clone leaves a primitive value as-is
+    // (see `_cloneObj`), so lodash.setWith tries to assign 'b' onto that
+    // primitive, which silently no-ops instead of overwriting `a` with
+    // `{ b: 2 }` the way mutable `_.set` would.
+    const object = { a: 1 }
+
+    deepFreeze(object)
+
+    const nextObject = setImmutable(object, 'a.b', 2)
+
+    expect(nextObject).not.to.be(object)
+    expect(nextObject.a).to.be(1)
+    expect(nextObject.a.b).to.be(undefined)
+  })
+
+  it('with customClone replacing a primitive value to allow the path to continue', () => {
+    // Same starting point as the previous test (`a` is a number), but this
+    // customClone opts a primitive into becoming an object, so 'a.b' has
+    // somewhere to land instead of silently no-oping.
+    const object = { a: 1 }
+
+    deepFreeze(object)
+
+    function customClone (objValue, srcValue) {
+      if (typeof objValue === 'number') return {}
+      return clone(objValue, srcValue)
+    }
+
+    const nextObject = setImmutable(object, 'a.b', 2, customClone)
+
+    expect(nextObject).not.to.be(object)
+    expect(nextObject.a).not.to.be(1)
+    expect(nextObject.a.b).to.be(2)
+    expect(object.a).to.be(1)
+  })
 
   describe('mapping set immutables', () => {
     it('Syntax 1', () => {
