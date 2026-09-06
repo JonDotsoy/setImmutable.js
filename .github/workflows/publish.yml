@@ -16,21 +16,56 @@ name: Publish (PR preview)
 # hardcoded: "0.2.0-rc.1" publishes under "rc", "0.2.0-beta.2" would
 # publish under "beta", and a plain release version with no prerelease
 # identifier (e.g. "0.1.0") publishes under "latest".
+#
+# Before any of that, check-master-version gates the whole thing on
+# master's own package.json: once master's version has a GitHub Release,
+# that version is considered shipped, and preview builds for it stop --
+# a maintainer bumps package.json on master to open the window for the
+# next round of PR previews.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-permissions:
-  contents: write
-  id-token: write
-
 jobs:
-  publish:
+  check-master-version:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      should_publish: ${{ steps.check.outputs.should_publish }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 1
+
+      - name: Check if master's version already has a release
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          MASTER_VERSION=$(node -e "console.log(require('./package.json').version)")
+          if gh release view "v$MASTER_VERSION" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            echo "master is at $MASTER_VERSION, which already has a release (v$MASTER_VERSION) -- stopping the publish workflow."
+          else
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "master is at $MASTER_VERSION, no release yet -- continuing with publish."
+          fi
+
+  publish:
+    needs: check-master-version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
     # Forked PRs don't get an OIDC token for this repo's trusted publisher
     # (and shouldn't -- anyone could open one otherwise), so skip them
-    # instead of failing loudly.
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # instead of failing loudly. Also stop once master's version is
+    # already released (see check-master-version above).
+    if: |
+      needs.check-master-version.outputs.should_publish == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
 
