@@ -7,6 +7,11 @@ set -uo pipefail
 # Optional; the "default-type" action input, empty when unset.
 DEFAULT_TYPE="${DEFAULT_TYPE:-}"
 
+# Injected into every generated file as `expectTypeOf` (see below) --
+# pinned to the same range already used for it elsewhere in this repo
+# (package.json's devDependencies, test/integration/tc01-types.test-d.ts).
+EXPECT_TYPE_PKG="expect-type@^1.4.0"
+
 WORK="$RUNNER_TEMP/multi-engine-test"
 rm -rf "$WORK"
 mkdir -p "$WORK"
@@ -105,18 +110,25 @@ for i in "${!CASES[@]}"; do
     file_basename="${slug:-case-$i}.$ext"
   fi
 
-  # Every generated file gets Node's built-in "assert" injected as
-  # "assert", opaque to the case itself -- a case just uses `assert.*`
-  # without ever importing/requiring it. Bare "assert" (no "node:"
-  # prefix) so it also resolves pre-Node-14.18/16.
+  # Every generated file gets Node's built-in "assert" and expect-type's
+  # `expectTypeOf` injected, opaque to the case itself -- a case just
+  # uses `assert.*`/`expectTypeOf(...)` without ever importing/requiring
+  # either. Bare "assert" (no "node:" prefix) so it also resolves
+  # pre-Node-14.18/16. `expectTypeOf` type-checks its argument only
+  # under the "typescript" engine (a real compile-time check, via
+  # .mts/.cts); on every node/bun engine it's still the real
+  # expect-type runtime, which no-ops rather than throwing, so the same
+  # case works everywhere without special-casing per engine.
   if [ "$ext" = "mjs" ]; then
-    assert_prelude='import assert from "assert"'
+    prelude='import assert from "assert"
+import { expectTypeOf } from "expect-type"'
   else
-    assert_prelude='const assert = require("assert")'
+    prelude='const assert = require("assert")
+const { expectTypeOf } = require("expect-type")'
   fi
 
   file="$WORK/$file_basename"
-  { printf '%s\n\n' "$assert_prelude"; printf '%s\n' "$code_text"; } > "$file"
+  { printf '%s\n\n' "$prelude"; printf '%s\n' "$code_text"; } > "$file"
   CASE_FILES+=("$file")
   CASE_LABELS+=("$label")
   CASE_CODE+=("$code_text")
@@ -166,7 +178,7 @@ install_deps_node() {
     latest) resolved="node" ;;
     *) resolved="$version" ;;
   esac
-  (cd "$dir" && nvm exec "$resolved" npm install "$TARBALL" --no-audit --no-fund --silent) >/dev/null 2>&1
+  (cd "$dir" && nvm exec "$resolved" npm install "$TARBALL" "$EXPECT_TYPE_PKG" --no-audit --no-fund --silent) >/dev/null 2>&1
 }
 
 install_bun() {
@@ -197,7 +209,7 @@ run_bun_case() {
 
 install_deps_bun() {
   local dir="$1"
-  (cd "$dir" && "$HOME/.bun/bin/bun" add "$TARBALL" >/dev/null 2>&1)
+  (cd "$dir" && "$HOME/.bun/bin/bun" add "$TARBALL" "$EXPECT_TYPE_PKG" >/dev/null 2>&1)
 }
 
 install_deps_typescript() {
@@ -209,7 +221,7 @@ install_deps_typescript() {
   # @types/node is required for "assert"/"require" to resolve at all;
   # the runner's own system node/npm run tsc itself since type-checking
   # doesn't depend on which JS runtime is under test.
-  (cd "$dir" && npm install "$pkg" @types/node "$TARBALL" --no-audit --no-fund --silent) >/dev/null 2>&1
+  (cd "$dir" && npm install "$pkg" @types/node "$TARBALL" "$EXPECT_TYPE_PKG" --no-audit --no-fund --silent) >/dev/null 2>&1
 }
 
 run_typescript_case() {
