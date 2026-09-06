@@ -270,6 +270,27 @@ done
     echo "<details>"
     echo "<summary>Case $((i + 1)): ${CASE_LABELS[$i]}</summary>"
     echo
+
+    passed=()
+    failed=()
+    for engine in "${ENGINE_LABELS[@]}"; do
+      if [ "${RESULTS[$i|$engine]}" = "✅" ]; then
+        passed+=("\`$engine\`")
+      else
+        failed+=("\`$engine\`")
+      fi
+    done
+    if [ "${#passed[@]}" -gt 0 ]; then
+      joined=$(printf ', %s' "${passed[@]}")
+      echo "**Funcionó en:** ${joined:2}"
+      echo
+    fi
+    if [ "${#failed[@]}" -gt 0 ]; then
+      joined=$(printf ', %s' "${failed[@]}")
+      echo "**Falló en:** ${joined:2}"
+      echo
+    fi
+
     echo '```js'
     # The case's own code, not the file that actually ran -- the
     # injected "assert" import stays an implementation detail, not
