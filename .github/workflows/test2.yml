@@ -50,3 +50,84 @@ jobs:
             const { default: set } = await import("setimmutable")
             if (typeof set !== "function") throw new Error("set is not a function")
             set({}, "a.b.c", 1)
+            ---
+            // title: Map: static ESM import + array-of-pairs mapping
+            import map from "setimmutable/map"
+            if (typeof map !== "function") throw new Error("map is not a function")
+            map({}, [
+              [["a", "b", "c"], 1],
+              ["a.b.d", 2]
+            ])
+            ---
+            // title: Map: static ESM import + imperative callback mapping
+            import map from "setimmutable/map"
+            if (typeof map !== "function") throw new Error("map is not a function")
+            map({}, (set) => {
+              set(["a", "b", "c"], 1)
+              set("a.b.d", 2)
+            })
+            ---
+            // title: Map: static ESM import + object-literal callback mapping
+            import map from "setimmutable/map"
+            if (typeof map !== "function") throw new Error("map is not a function")
+            map({}, (set) => ({
+              a: {
+                b: { c: set(1) },
+                l: { o: { t: set(2) } }
+              }
+            }))
+            ---
+            // title: Map: CommonJS require + array-of-pairs mapping
+            // type: commonjs
+            const map = require("setimmutable/map")
+            if (typeof map !== "function") throw new Error("map is not a function")
+            map({}, [
+              [["a", "b", "c"], 1],
+              ["a.b.d", 2]
+            ])
+            ---
+            // title: Map: CommonJS require + imperative callback mapping
+            // type: commonjs
+            const map = require("setimmutable/map")
+            if (typeof map !== "function") throw new Error("map is not a function")
+            map({}, (set) => {
+              set(["a", "b", "c"], 1)
+              set("a.b.d", 2)
+            })
+            ---
+            // title: Map: CommonJS require + object-literal callback mapping
+            // type: commonjs
+            const map = require("setimmutable/map")
+            if (typeof map !== "function") throw new Error("map is not a function")
+            map({}, (set) => ({
+              a: {
+                b: { c: set(1) },
+                l: { o: { t: set(2) } }
+              }
+            }))
+            ---
+            // title: Map: dynamic ESM import + array-of-pairs mapping
+            const { default: map } = await import("setimmutable/map")
+            if (typeof map !== "function") throw new Error("map is not a function")
+            map({}, [
+              [["a", "b", "c"], 1],
+              ["a.b.d", 2]
+            ])
+            ---
+            // title: Map: dynamic ESM import + imperative callback mapping
+            const { default: map } = await import("setimmutable/map")
+            if (typeof map !== "function") throw new Error("map is not a function")
+            map({}, (set) => {
+              set(["a", "b", "c"], 1)
+              set("a.b.d", 2)
+            })
+            ---
+            // title: Map: dynamic ESM import + object-literal callback mapping
+            const { default: map } = await import("setimmutable/map")
+            if (typeof map !== "function") throw new Error("map is not a function")
+            map({}, (set) => ({
+              a: {
+                b: { c: set(1) },
+                l: { o: { t: set(2) } }
+              }
+            }))
