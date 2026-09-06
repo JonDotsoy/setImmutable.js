@@ -75,7 +75,7 @@ jobs:
       - name: Install the package under test in isolation
         run: |
           mkdir -p "$RUNNER_TEMP/$TC_ID"
-          cp test/integration/tc-published-package.js test/integration/tc-require.cjs test/integration/tc-import.mjs test/integration/tc-import-static.mjs "$RUNNER_TEMP/$TC_ID/"
+          cp test/integration/tc-published-package.js test/integration/tc-require.cjs test/integration/tc-import.mjs test/integration/tc-import-static.mjs test/integration/tc-bare-import.mjs test/integration/tc-bare-import-map.mjs "$RUNNER_TEMP/$TC_ID/"
           if [ "$PACKAGE_SOURCE" = "pack" ]; then
             npm run build
             npm pack
@@ -110,6 +110,20 @@ jobs:
         # import step above), but expected to work unflagged from Node
         # 12 onward (TC03-TC05).
         run: node tc-import-static.mjs
+        working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
+        continue-on-error: ${{ matrix.tc_id == 'TC01' || matrix.tc_id == 'TC02' }}
+      - name: Run test (bare import "setimmutable")
+        # Same ESM-support constraint as the static-import step above: no
+        # top-level await needed, just ESM at all.
+        run: node tc-bare-import.mjs
+        working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
+        continue-on-error: ${{ matrix.tc_id == 'TC01' || matrix.tc_id == 'TC02' }}
+      - name: Run test (bare import "setimmutable/map")
+        # Exercises package.json's "exports" map: Node's ESM resolver (as
+        # opposed to require()) does not infer the ".js" extension on a
+        # bare subpath specifier, so without "exports" this import would
+        # fail with ERR_MODULE_NOT_FOUND even on modern Node.
+        run: node tc-bare-import-map.mjs
         working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
         continue-on-error: ${{ matrix.tc_id == 'TC01' || matrix.tc_id == 'TC02' }}
 

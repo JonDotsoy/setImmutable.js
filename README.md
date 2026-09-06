@@ -13,7 +13,11 @@ In Node.js:
 
 ```javascript
 const set = require('setimmutable');
+// or, from an ES module:
+// import set from 'setimmutable'
 ```
+
+`map` and `clone` are separate subpaths, resolvable the same way with either `require` or `import` — `require('setimmutable/map')`, `import 'setimmutable/map'`, etc. (`package.json`'s `"exports"` map is what makes the extension-less `import` form resolve; without it, Node's ESM resolver — unlike `require()` — won't infer `.js` on a bare subpath specifier).
 
 
 ## Mutable Vs. Immutable
