@@ -22,6 +22,37 @@ import setImmutable from 'setimmutable'
 import map from 'setimmutable/map'
 import clone from 'setimmutable/clone'
 
+// -- other import styles tsc must also resolve/type-check -------------------
+// (see the runtime equivalents in test/integration/tc-bare-import.mjs,
+// tc-import.mjs and tc-require.cjs -- this covers the type-level side of
+// two of those three styles against the published package. The third,
+// a bare/side-effect `import 'setimmutable'` with no binding, is
+// deliberately NOT included here: TypeScript does not report an
+// unresolvable module for a binding-less import -- confirmed by testing
+// `import 'a-module-that-does-not-exist'` alongside `import x from
+// 'a-module-that-does-not-exist'` in isolation: the bound form correctly
+// fails with TS2307, the bare form compiles cleanly either way. A bare
+// import here would silently pass even if "setimmutable" didn't exist,
+// so it can only be meaningfully verified at runtime, which
+// tc-bare-import.mjs already does.)
+
+// require() -- plain `require(...)` isn't typed without @types/node
+// (not a dependency here), so this uses TypeScript's own require-import
+// syntax instead, which needs no ambient Node types.
+import requiredSetImmutable = require('setimmutable')
+expectTypeOf(requiredSetImmutable).toBeFunction()
+
+// dynamic import() -- wrapped in an async function rather than used at
+// the top level: this file's tsconfig targets "module": "commonjs",
+// where top-level await isn't valid TypeScript regardless of what the
+// target Node version supports at runtime (see tc-import.mjs for that
+// runtime check); wrapping is enough to type-check the same import().
+async function checkDynamicImport () {
+  const dynamicSetImmutable = (await import('setimmutable')).default
+  expectTypeOf(dynamicSetImmutable).toBeFunction()
+}
+void checkDynamicImport
+
 // -- set(object, path, value, [customClone]) --------------------------------
 
 expectTypeOf(setImmutable).toBeFunction()
