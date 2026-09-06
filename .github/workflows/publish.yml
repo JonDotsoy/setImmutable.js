@@ -16,7 +16,7 @@ on:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -46,7 +46,24 @@ jobs:
           BASE_VERSION=$(node -e "console.log(require('./package.json').version.replace(/-rc\.\d+$/, ''))")
           VERSION="${BASE_VERSION}-rc.${{ github.run_number }}"
           npm pkg set version="$VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "Publishing $VERSION"
 
       - name: Publish
         run: npm publish --tag rc
+
+      # GitHub has no notion of a package's own version history, so a
+      # Release is the closest thing to a changelog entry for this
+      # PR-preview build -- linking straight to the npm page saves anyone
+      # digging through Actions logs to find what got published.
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v$VERSION" \
+            --target "${{ github.sha }}" \
+            --title "v$VERSION" \
+            --prerelease \
+            --notes "PR preview build from #${{ github.event.pull_request.number }}.
+
+          npm: https://www.npmjs.com/package/setimmutable/v/$VERSION"
