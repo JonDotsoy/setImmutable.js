@@ -12,7 +12,6 @@
   },
   "include": [
     "src/**/*.ts",
-    "test/types.test-d.ts",
-    "test/setImmutable2.test-d.ts"
+    "test/types.test-d.ts"
   ]
 }

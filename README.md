@@ -179,12 +179,10 @@ map(object, set => ({
 
 ## TypeScript
 
-The published `set`/`map`/`clone` entry points ship as plain JavaScript with no `.d.ts`. TypeScript can still `require`/`import` them (the source itself is written in TypeScript — see `src/*.ts` — but compiled to untyped `.js` for publishing), but every parameter and the return type resolve to `any`: there's nothing for the compiler to check `path` or the result against.
-
-`src/setImmutable2.ts` is an experimental, not-yet-published wrapper around the same runtime that gives `path`-aware inference instead: it resolves the actual shape of the result at the type level, so the compiler catches a wrong value type at the exact key you're setting.
+The published `set`/`map`/`clone` entry points ship as plain JavaScript with no `.d.ts` — `require`/`import`ing them from the npm package still resolves every parameter and the return type to `any`, since there's no declaration file for the compiler to check `path` or the result against. The source itself (`src/*.ts`), however, is real TypeScript, and `set` (`src/setImmutable.ts`) is generic and `path`-aware: it resolves the actual shape of the result at the type level, so the compiler catches a wrong value type at the exact key you're setting — this is visible if you build from source, but not yet if you consume the published package (there's no build step that emits and publishes a `.d.ts` today).
 
 ```typescript
-import setImmutable from './setImmutable2' // not published under "setimmutable" yet
+import setImmutable from './src/setImmutable'
 
 type A = { a: number }
 const a: A = { a: 1 }
