@@ -1,12 +1,14 @@
 name: Test
 
 on:
-  push:
   # Disabled in favor of Test2 (.github/workflows/test2.yml), which runs
   # the same kind of engine/syntax matrix through the new
   # ./.github/actions/multi-engine-test custom action and posts its own
-  # PR comment.
+  # PR comment. Kept as workflow_dispatch so it can still be run by hand
+  # if needed.
+  # push:
   # pull_request:
+  workflow_dispatch:
 
 env:
   # Controls where the TC jobs below that install "setimmutable" as an
