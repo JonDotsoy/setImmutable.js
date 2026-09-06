@@ -1,9 +1,12 @@
 name: Publish (PR preview)
 
-# Publishes a throwaway prerelease of `setimmutable` to npm on every push to
-# an open PR, so reviewers can `npm install setimmutable@rc` and try the
-# exact code in the PR. Uses npm Trusted Publishing (OIDC) -- no NPM_TOKEN
-# secret involved, see https://docs.npmjs.com/trusted-publishers.
+# Publishes a throwaway prerelease of `setimmutable` to npm on every push
+# to an open PR that touches package.json, so reviewers can `npm install
+# setimmutable@rc` and try the exact code in the PR. Scoped to that one
+# file so unrelated pushes (docs, CI tweaks, source changes without a
+# version bump) don't mint a new npm/GitHub release for nothing. Uses npm
+# Trusted Publishing (OIDC) -- no NPM_TOKEN secret involved, see
+# https://docs.npmjs.com/trusted-publishers.
 #
 # package.json's committed version (e.g. "0.2.0-rc.1") is only the base:
 # npm publish is a one-shot per version -- the registry rejects a second
@@ -25,6 +28,8 @@ name: Publish (PR preview)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - package.json
 
 jobs:
   check-master-version:
