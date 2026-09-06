@@ -118,7 +118,6 @@ Temporary Items
 
 # Custom
 
-*.js 
-!Gulpfile.js 
-!src/*.js 
-!test/*.js 
+*.js
+!test/*.js
+!test/integration/*.js
