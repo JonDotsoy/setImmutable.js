@@ -27,6 +27,11 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    # The repo's "build" script (package.json) shells out to the `bun`
+    # CLI to transpile src/*.ts, so it must be on PATH before "npm run
+    # build" below, same as the "tc" jobs in test.yml.
+    - uses: oven-sh/setup-bun@v2
+
     - name: Build package tarball
       shell: bash
       run: |
