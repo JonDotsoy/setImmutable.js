@@ -49,116 +49,129 @@ jobs:
             import set from "setimmutable"
             expectTypeOf(set).toBeFunction
             assert.strictEqual(typeof set, "function")
-            set({}, "a.b.c", 1)
+            const result = set({}, "a.b.c", 1)
+            expectTypeOf(result).toBeObject
             ---
             // title: CommonJS require: const set = require("setimmutable")
             // type: commonjs
             const set = require("setimmutable")
             expectTypeOf(set).toBeFunction
             assert.strictEqual(typeof set, "function")
-            set({}, "a.b.c", 1)
+            const result = set({}, "a.b.c", 1)
+            expectTypeOf(result).toBeObject
             ---
             // title: Static ESM import with an array path
             import set from "setimmutable"
             expectTypeOf(set).toBeFunction
             assert.strictEqual(typeof set, "function")
-            set({}, ["a", "b", "c"], 1)
+            const result = set({}, ["a", "b", "c"], 1)
+            expectTypeOf(result).toBeObject
             ---
             // title: Dynamic ESM import: const { default: set } = await import("setimmutable")
             const { default: set } = await import("setimmutable")
             expectTypeOf(set).toBeFunction
             assert.strictEqual(typeof set, "function")
-            set({}, "a.b.c", 1)
+            const result = set({}, "a.b.c", 1)
+            expectTypeOf(result).toBeObject
             ---
             // title: Map: static ESM import + array-of-pairs mapping
             import map from "setimmutable/map"
             expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
-            map({}, [
+            const result = map({}, [
               [["a", "b", "c"], 1],
               ["a.b.d", 2]
             ])
+            expectTypeOf(result).toBeObject
             ---
             // title: Map: static ESM import + imperative callback mapping
             import map from "setimmutable/map"
             expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
-            map({}, (set) => {
+            const result = map({}, (set) => {
               set(["a", "b", "c"], 1)
               set("a.b.d", 2)
             })
+            expectTypeOf(result).toBeObject
             ---
             // title: Map: static ESM import + object-literal callback mapping
             import map from "setimmutable/map"
             expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
-            map({}, (set) => ({
+            const result = map({}, (set) => ({
               a: {
                 b: { c: set(1) },
                 l: { o: { t: set(2) } }
               }
             }))
+            expectTypeOf(result).toBeObject
             ---
             // title: Map: CommonJS require + array-of-pairs mapping
             // type: commonjs
             const map = require("setimmutable/map")
             expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
-            map({}, [
+            const result = map({}, [
               [["a", "b", "c"], 1],
               ["a.b.d", 2]
             ])
+            expectTypeOf(result).toBeObject
             ---
             // title: Map: CommonJS require + imperative callback mapping
             // type: commonjs
             const map = require("setimmutable/map")
             expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
-            map({}, (set) => {
+            const result = map({}, (set) => {
               set(["a", "b", "c"], 1)
               set("a.b.d", 2)
             })
+            expectTypeOf(result).toBeObject
             ---
             // title: Map: CommonJS require + object-literal callback mapping
             // type: commonjs
             const map = require("setimmutable/map")
             expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
-            map({}, (set) => ({
+            const result = map({}, (set) => ({
               a: {
                 b: { c: set(1) },
                 l: { o: { t: set(2) } }
               }
             }))
+            expectTypeOf(result).toBeObject
             ---
             // title: Map: dynamic ESM import + array-of-pairs mapping
             const { default: map } = await import("setimmutable/map")
             expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
-            map({}, [
+            const result = map({}, [
               [["a", "b", "c"], 1],
               ["a.b.d", 2]
             ])
+            expectTypeOf(result).toBeObject
             ---
             // title: Map: dynamic ESM import + imperative callback mapping
             const { default: map } = await import("setimmutable/map")
             expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
-            map({}, (set) => {
+            const result = map({}, (set) => {
               set(["a", "b", "c"], 1)
               set("a.b.d", 2)
             })
+            expectTypeOf(result).toBeObject
             ---
             // title: Map: dynamic ESM import + object-literal callback mapping
             const { default: map } = await import("setimmutable/map")
             expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
-            map({}, (set) => ({
+            const result = map({}, (set) => ({
               a: {
                 b: { c: set(1) },
                 l: { o: { t: set(2) } }
               }
             }))
+            expectTypeOf(result).toBeObject
             ---
             // title: Key-path: dot-separated string ("a.b.c")
             import set from "setimmutable"
