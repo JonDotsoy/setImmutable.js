@@ -23,7 +23,12 @@ name: Publish
 # hardcoded: "0.2.0-rc.1" publishes under "rc", "0.2.0-beta.2" would
 # publish under "beta", and a plain release version with no prerelease
 # identifier (e.g. "0.1.0") publishes under "latest" -- and is the only
-# case marked as a non-prerelease GitHub Release.
+# case marked as a non-prerelease GitHub Release. Exception: a
+# pull_request run NEVER publishes under "latest", even if package.json
+# already carries a final version in anticipation of merging -- it
+# previews under that version's own identifier, or "rc" if it has none.
+# "latest" only ever comes from a push to master, once the version is
+# actually merged.
 #
 # Before any of that, check-master-version gates the whole thing on
 # master's own package.json: once master's version has a GitHub Release,
@@ -102,8 +107,22 @@ jobs:
         run: |
           RAW_VERSION=$(node -e "console.log(require('./package.json').version)")
           if [[ "$RAW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-([A-Za-z]+)(\.[0-9]+)?$ ]]; then
-            TAG="${BASH_REMATCH[1]}"
-            BASE_VERSION="${RAW_VERSION%-*}"
+            IDENTIFIER="${BASH_REMATCH[1]}"
+          else
+            IDENTIFIER=""
+          fi
+          BASE_VERSION="${RAW_VERSION%-*}"
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # A PR can carry a final version (e.g. "0.2.0") in
+            # anticipation of merging -- never let that publish under
+            # "latest" while still unmerged/unreviewed: preview it under
+            # its own identifier if it has one, "rc" otherwise.
+            TAG="${IDENTIFIER:-rc}"
+            VERSION="${BASE_VERSION}-${TAG}.${{ github.run_number }}"
+            PRERELEASE=true
+          elif [ -n "$IDENTIFIER" ]; then
+            TAG="$IDENTIFIER"
             VERSION="${BASE_VERSION}-${TAG}.${{ github.run_number }}"
             PRERELEASE=true
           else
@@ -111,6 +130,7 @@ jobs:
             VERSION="$RAW_VERSION"
             PRERELEASE=false
           fi
+
           npm pkg set version="$VERSION"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "TAG=$TAG" >> "$GITHUB_ENV"
