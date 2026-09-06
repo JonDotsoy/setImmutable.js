@@ -1,4 +1,4 @@
-# SetImmutable [![Build Status](https://travis-ci.org/JonDotsoy/setImmutable.js.svg?branch=master)](https://travis-ci.org/JonDotsoy/setImmutable.js)
+# SetImmutable
 
 [lodash.set][] sets a value at a path by mutating the target object in place and returning that same reference. That is a problem anywhere state is expected to be immutable: React/Redux (and any `shouldComponentUpdate`, `useMemo`, `connect` or selector built on `===` reference checks), frozen state trees (`Object.freeze`), time-travel/undo history, and change detection that compares object identity instead of deep-diffing on every update.
 
