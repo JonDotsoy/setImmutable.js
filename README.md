@@ -177,6 +177,35 @@ map(object, set => ({
 - ***(Object)***: A new object with every update from `mapping` applied.
 
 
+## TypeScript
+
+The published `set`/`map`/`clone` entry points ship as plain JavaScript with no `.d.ts`. TypeScript can still `require`/`import` them (the source itself is written in TypeScript — see `src/*.ts` — but compiled to untyped `.js` for publishing), but every parameter and the return type resolve to `any`: there's nothing for the compiler to check `path` or the result against.
+
+`src/setImmutable2.ts` is an experimental, not-yet-published wrapper around the same runtime that gives `path`-aware inference instead: it resolves the actual shape of the result at the type level, so the compiler catches a wrong value type at the exact key you're setting.
+
+```typescript
+import setImmutable from './setImmutable2' // not published under "setimmutable" yet
+
+type A = { a: number }
+const a: A = { a: 1 }
+
+const result = setImmutable(a, 'a', 'foo')
+// result: { a: string } -- inferred, not `any`
+
+result.a.toUpperCase() // ok, TypeScript knows result.a is a string
+```
+
+It supports the same two path forms as `set`, minus their bracket/index string syntax:
+
+- **Dot-separated string paths** — `'a.b.c'`, including segments that don't exist yet on the input type (they're typed as newly created).
+- **Array-of-keys paths** — `['a', 'b', 'c']`.
+
+**Known limits**
+
+- **Bracket/index paths in string form aren't parsed.** `'list[1]'` or `'a[2].b'` are treated as one opaque literal key instead of indexing into an array, so the inferred type is wrong for that path form. Use the array-of-keys form (`['list', 1]`) to get real inference into arrays.
+- **`customClone` isn't typed.** Since it can construct an arbitrary object at runtime, there's no way to reflect its effect on the result type; the shape at that node falls back to whatever `customClone`'s own return type is inferred as.
+- **Path depth is capped by TypeScript's own recursion limit, not by the library.** The type resolves correctly up to **31 levels deep** (`'a.b.c. ... '`, 31 segments) for both path forms; a 32nd level hits TypeScript's `Type instantiation is excessively deep and possibly infinite` error. That ceiling is inherent to how the type recurses (each level wraps the recursive call in `Omit<T, K> & Record<K, ...>`, which isn't a tail call TypeScript can optimize away) — a genuinely tail-recursive type in TypeScript can go far deeper (~999 levels), but reworking `SetPath` into that shape hasn't been done here. In practice 31 levels is far beyond any object shape this library has ever been used with; the *runtime* has no such limit at any depth.
+
 ## SetImmutable with [Redux][redux]
 
 **With SetImmutable:**
