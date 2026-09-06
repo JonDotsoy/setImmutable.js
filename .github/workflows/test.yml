@@ -223,6 +223,18 @@ jobs:
           pattern: tc-result-*
           path: tc-results
           merge-multiple: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - uses: oven-sh/setup-bun@v2
+      - name: Build and pack (dry run) for the file-listing section
+        # Same build the "tc" jobs use, but only to capture what a real
+        # `npm publish` would actually ship -- `--dry-run` skips writing
+        # the tarball to disk since nothing here installs it.
+        continue-on-error: true
+        run: |
+          npm run build
+          npm pack --dry-run --json > "$RUNNER_TEMP/pack.json"
       - uses: actions/github-script@v7
         with:
           script: |
@@ -304,9 +316,26 @@ jobs:
 
             const legend = '\n\n❌ on an older Node version for an import/`await import()` syntax is a known, documented language-support gap (see README\'s "TypeScript"/CI notes), not a regression -- `require()` and the full behavior suite are expected to be ✅ everywhere.'
 
+            // What `npm publish` would actually ship -- captured by the
+            // "Build and pack (dry run)" step above via `npm pack
+            // --dry-run --json`. continue-on-error there, so a missing or
+            // unparsable file here just skips this section instead of
+            // failing the whole report.
+            let packSection = ''
+            try {
+              const packPath = path.join(process.env.RUNNER_TEMP, 'pack.json')
+              const [pkg] = JSON.parse(fs.readFileSync(packPath, 'utf8'))
+              const fileRows = pkg.files
+                .map((f) => `| \`${f.path}\` | ${f.size.toLocaleString()} B |`)
+                .join('\n')
+              packSection = `\n\n<details>\n<summary>Package contents (\`npm pack\`) -- ${pkg.entryCount} files, ${pkg.unpackedSize.toLocaleString()} B unpacked</summary>\n\n| File | Size |\n| --- | --- |\n${fileRows}\n\n</details>`
+            } catch {
+              // no-op: section omitted, see comment above.
+            }
+
             const marker = '<!-- setimmutable-test-report -->'
             const headSha = context.payload.pull_request.head.sha.slice(0, 7)
-            const body = `${marker}\n### Test results (${headSha})\n\n${header}\n${separator}\n${rows}${typesLine}${legend}${publishedScriptDetails}\n`
+            const body = `${marker}\n### Test results (${headSha})\n\n${header}\n${separator}\n${rows}${typesLine}${legend}${packSection}${publishedScriptDetails}\n`
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
