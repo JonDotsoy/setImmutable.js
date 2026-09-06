@@ -10,7 +10,7 @@
  * ("setimmutable", not "../src/setImmutable") so it only resolves
  * against a real `npm install setimmutable` -- see
  * .github/workflows/test.yml (job "tc01-types") for how this is
- * invoked, installed the same isolated way as the other TC01/smoke-*
+ * invoked, installed the same isolated way as the TC02-TC06 smoke
  * jobs. `.returns` assertions are intentionally left out here: resolving
  * a plain JS package through node_modules (as opposed to a relative
  * src/ import) makes TypeScript infer a different, non-`any` return

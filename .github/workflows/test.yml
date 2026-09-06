@@ -26,21 +26,22 @@ env:
   PACKAGE_SOURCE: pack
 
 jobs:
-  # TC01-TC05 all run test/integration/tc-published-package.js (shared
+  # TC02-TC06 all run test/integration/tc-published-package.js (shared
   # script, parameterized by the TC_ID env var) against the package
-  # under test, one Node.js version each via the matrix below:
-  #   - TC01: Node 6, the LTS active through 2017 and the version pinned
+  # under test, one Node.js version each via the matrix below (TC01 is
+  # the separate types job further down):
+  #   - TC02: Node 6, the LTS active through 2017 and the version pinned
   #     in the project's original .travis.yml.
-  #   - TC02: Node 10 ("Dubnium"), the LTS active for most of 2019 --
-  #     there's no repo-history anchor for 2019 the way TC01 has, so
+  #   - TC03: Node 10 ("Dubnium"), the LTS active for most of 2019 --
+  #     there's no repo-history anchor for 2019 the way TC02 has, so
   #     this is representative of a typical production pin that year.
-  #   - TC03: Node 12 ("Erbium"), the *other* Node LTS touching 2019 --
+  #   - TC04: Node 12 ("Erbium"), the *other* Node LTS touching 2019 --
   #     it only became Active LTS in October 2019 (the last ~3 months
-  #     of the year), so together TC02+TC03 cover "2019" end to end.
-  #   - TC04: whatever Node LTS is current today.
-  #   - TC05: whatever Node "Current" release is out today -- ahead of
+  #     of the year), so together TC03+TC04 cover "2019" end to end.
+  #   - TC05: whatever Node LTS is current today.
+  #   - TC06: whatever Node "Current" release is out today -- ahead of
   #     the LTS line, catching anything that only breaks on the newest
-  #     Node before it ever reaches TC04.
+  #     Node before it ever reaches TC05.
   tc:
     name: "${{ matrix.tc_id }}: smoke / install setimmutable (${{ matrix.label }})"
     runs-on: ubuntu-latest
@@ -48,19 +49,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - tc_id: TC01
+          - tc_id: TC02
             node_version: '6'
             label: "node 6, 2017"
-          - tc_id: TC02
+          - tc_id: TC03
             node_version: '10'
             label: "node 10, 2019"
-          - tc_id: TC03
+          - tc_id: TC04
             node_version: '12'
             label: "node 12, 2019"
-          - tc_id: TC04
+          - tc_id: TC05
             node_version: "lts/*"
             label: "node lts/*, current"
-          - tc_id: TC05
+          - tc_id: TC06
             node_version: latest
             label: "node latest, current"
     env:
@@ -98,8 +99,8 @@ jobs:
         id: test_import_dynamic
         # Top-level `await` in an ES module (needed for this literal
         # `await import(...)` style) wasn't unflagged until Node 14.8 --
-        # expected to fail on TC01 (Node 6, no ESM support at all: fails
-        # to even parse the `import` keyword) and TC02/TC03 (Node 10/12:
+        # expected to fail on TC02 (Node 6, no ESM support at all: fails
+        # to even parse the `import` keyword) and TC03/TC04 (Node 10/12:
         # parse `import()` fine but reject top-level `await` as a
         # reserved word). continue-on-error so that known, inherent gap
         # doesn't block CI on those older Node versions.
@@ -109,20 +110,20 @@ jobs:
       - name: Run test (static import setimmutable from "setimmutable")
         id: test_import_static
         # Unlike tc-import.mjs, this has no top-level `await`, so it only
-        # needs ESM support at all -- unavailable pre-Node-12 (TC01/TC02
+        # needs ESM support at all -- unavailable pre-Node-12 (TC02/TC03
         # fail to parse `import` as a statement, same as the dynamic-
         # import step above), but expected to work unflagged from Node
-        # 12 onward (TC03-TC05).
+        # 12 onward (TC04-TC06).
         run: node tc-import-static.mjs
         working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
-        continue-on-error: ${{ matrix.tc_id == 'TC01' || matrix.tc_id == 'TC02' }}
+        continue-on-error: ${{ matrix.tc_id == 'TC02' || matrix.tc_id == 'TC03' }}
       - name: Run test (bare import "setimmutable")
         id: test_bare_import
         # Same ESM-support constraint as the static-import step above: no
         # top-level await needed, just ESM at all.
         run: node tc-bare-import.mjs
         working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
-        continue-on-error: ${{ matrix.tc_id == 'TC01' || matrix.tc_id == 'TC02' }}
+        continue-on-error: ${{ matrix.tc_id == 'TC02' || matrix.tc_id == 'TC03' }}
       - name: Run test (bare import "setimmutable/map")
         id: test_bare_import_map
         # Exercises package.json's "exports" map: Node's ESM resolver (as
@@ -131,7 +132,7 @@ jobs:
         # fail with ERR_MODULE_NOT_FOUND even on modern Node.
         run: node tc-bare-import-map.mjs
         working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
-        continue-on-error: ${{ matrix.tc_id == 'TC01' || matrix.tc_id == 'TC02' }}
+        continue-on-error: ${{ matrix.tc_id == 'TC02' || matrix.tc_id == 'TC03' }}
       - name: Write result summary
         # `steps.<id>.outcome` is the step's *real* pass/fail, unaffected
         # by continue-on-error (unlike `.conclusion`, and unlike anything
@@ -164,8 +165,8 @@ jobs:
           retention-days: 1
 
   # TC01 (types): type-level checks (tsc --noEmit + expect-type) for the
-  # same package TC01 exercises at runtime above. Runs on a modern Node,
-  # since tsc itself doesn't support Node 6. See
+  # same package the TC02-TC06 matrix exercises at runtime above. Runs
+  # on a modern Node, since tsc itself doesn't support Node 6. See
   # test/integration/tc01-types.test-d.ts.
   tc01-types:
     name: "TC01: types (tsc) / install setimmutable"
@@ -212,7 +213,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-        # tc-result-TC01..TC05, one JSON file each, uploaded by the "tc"
+        # tc-result-TC02..TC06, one JSON file each, uploaded by the "tc"
         # matrix job above with the real (continue-on-error-independent)
         # outcome of each import-style step. If "tc" never ran or every
         # leg was cancelled before its upload step, this directory just
@@ -228,13 +229,13 @@ jobs:
             const fs = require('fs')
             const path = require('path')
 
-            const TC_ORDER = ['TC01', 'TC02', 'TC03', 'TC04', 'TC05']
+            const TC_ORDER = ['TC02', 'TC03', 'TC04', 'TC05', 'TC06']
             const TC_COLUMN_LABEL = {
-              TC01: 'Node 6',
-              TC02: 'Node 10',
-              TC03: 'Node 12',
-              TC04: 'Node LTS',
-              TC05: 'Node Latest'
+              TC02: 'Node 6',
+              TC03: 'Node 10',
+              TC04: 'Node 12',
+              TC05: 'Node LTS',
+              TC06: 'Node Latest'
             }
 
             const resultsByTcId = {}

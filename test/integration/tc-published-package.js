@@ -1,25 +1,26 @@
 'use strict'
 
 /**
- * Shared script behind TC01 and TC02: the published `setimmutable`
- * package (its `set`, `map` and `clone` entry points) is importable on
- * an old Node.js runtime, and a battery of setImmutable(T, path, V): R
- * cases (plus map()/clone()) behave as documented there. Run with plain
+ * Shared script behind the TC02-TC06 matrix (job "tc" in
+ * .github/workflows/test.yml): the published `setimmutable` package
+ * (its `set`, `map` and `clone` entry points) is importable on an old
+ * Node.js runtime, and a battery of setImmutable(T, path, V): R cases
+ * (plus map()/clone()) behave as documented there. Run with plain
  * `node` (no mocha/babel/TS -- none of that tooling supports the Node
  * versions this targets), against the package as installed from the
  * npm registry, not the repo's src/.
  *
  * The only thing that varies between TCs is *which* Node runtime this
  * runs on and the TC_ID used in the console output -- set via the TC_ID
- * env var, defaulting to "TC01":
- *   - TC01: Node 6, the LTS active through 2017 and the version pinned
+ * env var, defaulting to "TC02":
+ *   - TC02: Node 6, the LTS active through 2017 and the version pinned
  *     in the project's original .travis.yml.
- *   - TC02: Node 10 ("Dubnium"), the LTS active for most of 2019 --
- *     there's no repo-history anchor for 2019 the way TC01 has, so this
+ *   - TC03: Node 10 ("Dubnium"), the LTS active for most of 2019 --
+ *     there's no repo-history anchor for 2019 the way TC02 has, so this
  *     is just representative of a typical production pin that year.
  *
- * See .github/workflows/test.yml (jobs "smoke-node-2017" and
- * "smoke-node-2019") for how each TC invokes this in CI.
+ * TC01 is the separate types job further down in the same workflow
+ * file, not part of this matrix.
  */
 
 var assert = require('assert')
@@ -27,7 +28,7 @@ var setImmutable = require('setimmutable')
 var map = require('setimmutable/map')
 var clone = require('setimmutable/clone')
 
-var TC_ID = process.env.TC_ID || 'TC01'
+var TC_ID = process.env.TC_ID || 'TC02'
 
 console.log(TC_ID + ': setimmutable is importable on Node ' + process.version)
 
