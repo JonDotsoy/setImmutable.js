@@ -93,6 +93,23 @@ describe('setImmutable', () => {
     expect(nextObject['0'][1][2]).to.be('a')
   })
 
+  it('with a path descending through a primitive value', () => {
+    // `a` is a number, not an object -- there is nothing for 'a.b' to
+    // descend into. The default clone leaves a primitive value as-is
+    // (see `_cloneObj`), so lodash.setWith tries to assign 'b' onto that
+    // primitive, which silently no-ops instead of overwriting `a` with
+    // `{ b: 2 }` the way mutable `_.set` would.
+    const object = { a: 1 }
+
+    deepFreeze(object)
+
+    const nextObject = setImmutable(object, 'a.b', 2)
+
+    expect(nextObject).not.to.be(object)
+    expect(nextObject.a).to.be(1)
+    expect(nextObject.a.b).to.be(undefined)
+  })
+
   describe('mapping set immutables', () => {
     it('Syntax 1', () => {
       const prevObj = {}

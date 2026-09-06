@@ -48,6 +48,18 @@ expectTypeOf(r2.count).toEqualTypeOf<number>()
 const r3 = setImmutable({} as {}, 'a.b.c', 1)
 expectTypeOf(r3.a.b.c).toEqualTypeOf<number>()
 
+// setting a path through a key whose current type is a primitive (not an
+// object): the type-level side of the runtime gotcha documented in
+// test/tests.js ("with a path descending through a primitive value").
+// SetPath still types 'a.b' as newly created, overwriting `a`'s type --
+// it has no way to know that lodash.setWith's default clone leaves a
+// primitive as-is at runtime and silently drops the nested set.
+type WithPrimitive = { a: number }
+const withPrimitive: WithPrimitive = { a: 1 }
+
+const r1b = setImmutable(withPrimitive, 'a.b', 2)
+expectTypeOf(r1b.a.b).toEqualTypeOf<number>()
+
 // -- array-of-keys paths ------------------------------------------------------
 
 type People = { people: { age: number }[] }
