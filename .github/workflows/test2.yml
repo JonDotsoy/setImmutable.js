@@ -29,47 +29,60 @@ jobs:
           # repeating "// type: module" on each -- the one CommonJS case
           # still declares its own "// type: commonjs" to override it.
           default-type: module
+          # Every case uses Node's built-in "assert" module to validate
+          # itself -- imported/required *without* the "node:" prefix,
+          # since that scheme isn't recognized until Node 14.18/16
+          # (node 6/10/12 in the matrix above would otherwise fail on
+          # the assert import itself, not on what's actually being
+          # tested).
           cases: |
             // title: Static ESM import: import set from "setimmutable"
+            import assert from "assert"
             import set from "setimmutable"
-            if (typeof set !== "function") throw new Error("set is not a function")
+            assert.strictEqual(typeof set, "function")
             set({}, "a.b.c", 1)
             ---
             // title: CommonJS require: const set = require("setimmutable")
             // type: commonjs
+            const assert = require("assert")
             const set = require("setimmutable")
-            if (typeof set !== "function") throw new Error("set is not a function")
+            assert.strictEqual(typeof set, "function")
             set({}, "a.b.c", 1)
             ---
             // title: Static ESM import with an array path
+            import assert from "assert"
             import set from "setimmutable"
-            if (typeof set !== "function") throw new Error("set is not a function")
+            assert.strictEqual(typeof set, "function")
             set({}, ["a", "b", "c"], 1)
             ---
             // title: Dynamic ESM import: const { default: set } = await import("setimmutable")
+            import assert from "assert"
             const { default: set } = await import("setimmutable")
-            if (typeof set !== "function") throw new Error("set is not a function")
+            assert.strictEqual(typeof set, "function")
             set({}, "a.b.c", 1)
             ---
             // title: Map: static ESM import + array-of-pairs mapping
+            import assert from "assert"
             import map from "setimmutable/map"
-            if (typeof map !== "function") throw new Error("map is not a function")
+            assert.strictEqual(typeof map, "function")
             map({}, [
               [["a", "b", "c"], 1],
               ["a.b.d", 2]
             ])
             ---
             // title: Map: static ESM import + imperative callback mapping
+            import assert from "assert"
             import map from "setimmutable/map"
-            if (typeof map !== "function") throw new Error("map is not a function")
+            assert.strictEqual(typeof map, "function")
             map({}, (set) => {
               set(["a", "b", "c"], 1)
               set("a.b.d", 2)
             })
             ---
             // title: Map: static ESM import + object-literal callback mapping
+            import assert from "assert"
             import map from "setimmutable/map"
-            if (typeof map !== "function") throw new Error("map is not a function")
+            assert.strictEqual(typeof map, "function")
             map({}, (set) => ({
               a: {
                 b: { c: set(1) },
@@ -79,8 +92,9 @@ jobs:
             ---
             // title: Map: CommonJS require + array-of-pairs mapping
             // type: commonjs
+            const assert = require("assert")
             const map = require("setimmutable/map")
-            if (typeof map !== "function") throw new Error("map is not a function")
+            assert.strictEqual(typeof map, "function")
             map({}, [
               [["a", "b", "c"], 1],
               ["a.b.d", 2]
@@ -88,8 +102,9 @@ jobs:
             ---
             // title: Map: CommonJS require + imperative callback mapping
             // type: commonjs
+            const assert = require("assert")
             const map = require("setimmutable/map")
-            if (typeof map !== "function") throw new Error("map is not a function")
+            assert.strictEqual(typeof map, "function")
             map({}, (set) => {
               set(["a", "b", "c"], 1)
               set("a.b.d", 2)
@@ -97,8 +112,9 @@ jobs:
             ---
             // title: Map: CommonJS require + object-literal callback mapping
             // type: commonjs
+            const assert = require("assert")
             const map = require("setimmutable/map")
-            if (typeof map !== "function") throw new Error("map is not a function")
+            assert.strictEqual(typeof map, "function")
             map({}, (set) => ({
               a: {
                 b: { c: set(1) },
@@ -107,24 +123,27 @@ jobs:
             }))
             ---
             // title: Map: dynamic ESM import + array-of-pairs mapping
+            import assert from "assert"
             const { default: map } = await import("setimmutable/map")
-            if (typeof map !== "function") throw new Error("map is not a function")
+            assert.strictEqual(typeof map, "function")
             map({}, [
               [["a", "b", "c"], 1],
               ["a.b.d", 2]
             ])
             ---
             // title: Map: dynamic ESM import + imperative callback mapping
+            import assert from "assert"
             const { default: map } = await import("setimmutable/map")
-            if (typeof map !== "function") throw new Error("map is not a function")
+            assert.strictEqual(typeof map, "function")
             map({}, (set) => {
               set(["a", "b", "c"], 1)
               set("a.b.d", 2)
             })
             ---
             // title: Map: dynamic ESM import + object-literal callback mapping
+            import assert from "assert"
             const { default: map } = await import("setimmutable/map")
-            if (typeof map !== "function") throw new Error("map is not a function")
+            assert.strictEqual(typeof map, "function")
             map({}, (set) => ({
               a: {
                 b: { c: set(1) },
@@ -133,31 +152,33 @@ jobs:
             }))
             ---
             // title: Key-path: dot-separated string ("a.b.c")
+            import assert from "assert"
             import set from "setimmutable"
             const result = set({}, "a.b.c", 1)
-            const expected = { a: { b: { c: 1 } } }
-            if (JSON.stringify(result) !== JSON.stringify(expected)) throw new Error("unexpected result: " + JSON.stringify(result))
+            assert.deepStrictEqual(result, { a: { b: { c: 1 } } })
             ---
             // title: Key-path: single string key ("a")
+            import assert from "assert"
             import set from "setimmutable"
             const result = set({}, "a", 1)
-            const expected = { a: 1 }
-            if (JSON.stringify(result) !== JSON.stringify(expected)) throw new Error("unexpected result: " + JSON.stringify(result))
+            assert.deepStrictEqual(result, { a: 1 })
             ---
             // title: Key-path: array of string keys (["a", "b", "c"])
+            import assert from "assert"
             import set from "setimmutable"
             const result = set({}, ["a", "b", "c"], 1)
-            const expected = { a: { b: { c: 1 } } }
-            if (JSON.stringify(result) !== JSON.stringify(expected)) throw new Error("unexpected result: " + JSON.stringify(result))
+            assert.deepStrictEqual(result, { a: { b: { c: 1 } } })
             ---
             // title: Key-path: array with a numeric index (["people", 0, "firstName"])
+            import assert from "assert"
             import set from "setimmutable"
             const result = set({}, ["people", 0, "firstName"], "Ana")
-            const expected = { people: [{ firstName: "Ana" }] }
-            if (JSON.stringify(result) !== JSON.stringify(expected)) throw new Error("unexpected result: " + JSON.stringify(result))
+            assert.deepStrictEqual(result, { people: [{ firstName: "Ana" }] })
             ---
             // title: Key-path: bracket/index string ("[0][1][2]")
+            import assert from "assert"
             import set from "setimmutable"
             const result = set({}, "[0][1][2]", "a")
-            const expected = { "0": [null, [null, null, "a"]] }
-            if (JSON.stringify(result) !== JSON.stringify(expected)) throw new Error("unexpected result: " + JSON.stringify(result))
+            // lodash.setWith creates sparse arrays here (real holes, not
+            // `null` elements) -- `[, x]` is a hole-preserving literal.
+            assert.deepStrictEqual(result, { "0": [, [, , "a"]] })
