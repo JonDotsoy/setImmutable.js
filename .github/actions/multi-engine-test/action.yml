@@ -64,6 +64,56 @@ runs:
         npm pack
         mv setimmutable-*.tgz "$RUNNER_TEMP/setimmutable.tgz"
 
+    # Cache keys computed here (rather than inlined into each cache
+    # step's "key:") so a multi-line input like "engines" never has to
+    # be embedded directly into a cache key string.
+    - name: Compute cache keys
+      id: cache-keys
+      shell: bash
+      env:
+        ENGINES_INPUT: ${{ inputs.engines }}
+      run: |
+        echo "engines-hash=$(echo "$ENGINES_INPUT" | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        # Bun's "latest" isn't pinned to a version, so its cache is
+        # rotated weekly instead of kept forever -- long enough to skip
+        # redundant downloads across nearby runs, short enough that
+        # "bun latest" doesn't silently stay stale for months.
+        echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
+    # Node versions installed via nvm inside run-matrix.sh -- keyed on
+    # the actual engines list, so nvm skips re-downloading a version
+    # it's already restored from cache (it only fetches what's missing).
+    - name: Cache nvm Node installs
+      uses: actions/cache@v4
+      with:
+        path: ~/.nvm
+        key: multi-engine-test-nvm-${{ runner.os }}-${{ steps.cache-keys.outputs.engines-hash }}
+        restore-keys: |
+          multi-engine-test-nvm-${{ runner.os }}-
+
+    # The Bun binary run-matrix.sh installs for "bun ..." engines
+    # (separate from the oven-sh/setup-bun@v2 above, which only sets up
+    # Bun for the build step). run-matrix.sh skips reinstalling when
+    # this is already present, so a cache hit avoids the download
+    # entirely instead of just speeding it up.
+    - name: Cache Bun install
+      uses: actions/cache@v4
+      with:
+        path: ~/.bun
+        key: multi-engine-test-bun-${{ runner.os }}-${{ steps.cache-keys.outputs.week }}
+
+    # npm's own download cache, shared across every per-engine
+    # `npm install <tarball>` in run-matrix.sh -- keyed on package.json
+    # since that's what determines which dependency versions get
+    # fetched.
+    - name: Cache npm registry cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: multi-engine-test-npm-${{ runner.os }}-${{ hashFiles('package.json') }}
+        restore-keys: |
+          multi-engine-test-npm-${{ runner.os }}-
+
     - name: Run cases across engines
       id: run
       shell: bash

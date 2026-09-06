@@ -171,6 +171,18 @@ install_deps_node() {
 
 install_bun() {
   local version="$1"
+  # Skip the download entirely when a cached ~/.bun already has what we
+  # need -- "latest" trusts whatever's cached (see the weekly cache-key
+  # rotation in action.yml), a specific version only skips if it's an
+  # exact match.
+  if [ -x "$HOME/.bun/bin/bun" ]; then
+    if [ "$version" = "latest" ]; then
+      return 0
+    fi
+    if [ "$("$HOME/.bun/bin/bun" --version 2>/dev/null)" = "$version" ]; then
+      return 0
+    fi
+  fi
   if [ "$version" = "latest" ]; then
     curl -fsSL https://bun.sh/install | bash >/dev/null 2>&1
   else
