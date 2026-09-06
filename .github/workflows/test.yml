@@ -4,9 +4,10 @@ on:
   # push runs the tc/tc01-types/report jobs below (the actual behavior
   # test suite via mocha, plus tsc type tests). pull_request instead
   # runs only "multi-engine" (see its own `if:`), the engine/syntax
-  # compatibility matrix via jondotsoy/action-greencase, which
-  # posts its own PR comment -- kept as a separate job rather than a
-  # separate workflow file since both live in this same Test workflow.
+  # compatibility matrix via jondotsoy/action-greencase, which writes its
+  # own results table to the job summary -- kept as a separate job rather
+  # than a separate workflow file since both live in this same Test
+  # workflow.
   push:
   pull_request:
   workflow_dispatch:
@@ -326,19 +327,19 @@ jobs:
               })
             }
 
-  # Exercises jondotsoy/action-greencase: it packs this repo,
-  # then runs every "case" below (a code snippet importing
-  # "setimmutable") against every "engine" below (a Node.js version,
-  # Bun, or a type-check-only TypeScript pass), and posts its own
-  # syntax x engine results table as a PR comment -- only meaningful on
-  # a pull_request event (a bare push has no PR to comment on).
+  # Exercises jondotsoy/action-greencase: it packs this repo, then runs
+  # every "case" below (a code snippet importing "setimmutable") against
+  # every "engine" below (a Node.js version, Bun, or a type-check-only
+  # TypeScript pass), and writes its own syntax x engine results table to
+  # the job summary -- only meaningful on a pull_request event (a bare
+  # push doesn't get its own "multi-engine" run, see the `on:` comment
+  # above).
   multi-engine:
     name: Multi-engine syntax/type compatibility
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
