@@ -79,7 +79,19 @@ describe('setImmutable', () => {
     expect(nextObject.prop1.prop1_1.arg2.b).to.be(originalObj.prop1.prop1_1.arg2.b)
   })
 
-  it.skip('set immutables', () => {})
+  it('with bracket/index string path', () => {
+    const object = {}
+
+    deepFreeze(object)
+
+    const nextObject = setImmutable(object, '[0][1][2]', 'a')
+
+    expect(nextObject).not.to.be(object)
+    expect(JSON.stringify(nextObject)).to.be(JSON.stringify({ '0': [null, [null, null, 'a']] }))
+    expect(Array.isArray(nextObject['0'])).to.be(true)
+    expect(Array.isArray(nextObject['0'][1])).to.be(true)
+    expect(nextObject['0'][1][2]).to.be('a')
+  })
 
   describe('mapping set immutables', () => {
     it('Syntax 1', () => {

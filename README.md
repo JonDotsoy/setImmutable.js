@@ -106,7 +106,7 @@ Sets `value` at `path` of `object`. If a portion of `path` doesn't exist, it's c
 const object = {}
 
 set(object, '[0][1][2]', 'a')
-// => { '0': { '1': {'2': 'a' } } }
+// => { '0': [ null, [ null, null, 'a' ] ] }
 ```
 
 **Example 2 (on [RunKit](https://runkit.com/jondotsoy/setimmutable-example-2))**
