@@ -11,6 +11,11 @@ inputs:
         node 12
         node lts
         bun latest
+        typescript latest
+      "typescript <version>" (version optional, defaults to latest) is
+      different from the others: it never executes a case, it only
+      type-checks it with `tsc --noEmit` (against a copy renamed to
+      .mts/.cts, matching the case's own .mjs/.js split).
     required: true
   cases:
     description: >-

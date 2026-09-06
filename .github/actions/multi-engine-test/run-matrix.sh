@@ -200,6 +200,32 @@ install_deps_bun() {
   (cd "$dir" && "$HOME/.bun/bin/bun" add "$TARBALL" >/dev/null 2>&1)
 }
 
+install_deps_typescript() {
+  local version="$1" dir="$2"
+  local pkg="typescript"
+  if [ -n "$version" ] && [ "$version" != "latest" ]; then
+    pkg="typescript@$version"
+  fi
+  # @types/node is required for "assert"/"require" to resolve at all;
+  # the runner's own system node/npm run tsc itself since type-checking
+  # doesn't depend on which JS runtime is under test.
+  (cd "$dir" && npm install "$pkg" @types/node "$TARBALL" --no-audit --no-fund --silent) >/dev/null 2>&1
+}
+
+run_typescript_case() {
+  local dir="$1" file="$2"
+  # --module/--moduleResolution nodenext (needed to resolve the bare
+  # "setimmutable"/"assert" specifiers, plus supports top-level await),
+  # --target es2022 (top-level await needs es2017+; nodenext requires
+  # es2022+ regardless), --noImplicitAny false (setimmutable ships no
+  # .d.ts -- TS7016 "implicitly has an 'any' type" otherwise; this
+  # engine is checking each syntax form compiles, not the library's own
+  # untyped surface). This only type-checks, per the "typescript"
+  # engine's very different job here: unlike every node/bun engine
+  # above, it never actually executes a case.
+  (cd "$dir" && ./node_modules/.bin/tsc --noEmit --target es2022 --module nodenext --moduleResolution nodenext --types node --noImplicitAny false "$(basename "$file")") >/dev/null 2>&1
+}
+
 # --- Set up every engine + run every case, collecting ✅/❌ per cell ---
 declare -A RESULTS
 ENGINE_LABELS=()
@@ -218,6 +244,9 @@ for engine in "${ENGINES[@]}"; do
     install_bun "$version"
     install_deps_bun "$engine_dir"
     deps_ok=$?
+  elif [ "$kind" = "typescript" ]; then
+    install_deps_typescript "$version" "$engine_dir"
+    deps_ok=$?
   else
     echo "Unknown engine kind: $kind" >&2
     deps_ok=1
@@ -227,7 +256,17 @@ for engine in "${ENGINES[@]}"; do
     # Node/Bun resolve `require`/`import` relative to the *file's own*
     # directory, not the process cwd -- so the case file has to actually
     # live next to the engine's node_modules, not just be run from there.
-    file="$engine_dir/$(basename "${CASE_FILES[$i]}")"
+    base="$(basename "${CASE_FILES[$i]}")"
+    if [ "$kind" = "typescript" ]; then
+      # tsc only compiles .ts/.mts/.cts by extension -- .mts/.cts also
+      # pin the file's module format (ESM/CJS) regardless of any
+      # "module"/"type" setting, matching the case's own .mjs/.js split.
+      case "$base" in
+        *.mjs) base="${base%.mjs}.mts" ;;
+        *.js) base="${base%.js}.cts" ;;
+      esac
+    fi
+    file="$engine_dir/$base"
     cp "${CASE_FILES[$i]}" "$file"
     if [ "$deps_ok" -ne 0 ]; then
       RESULTS["$i|$engine"]="❌"
@@ -235,8 +274,10 @@ for engine in "${ENGINES[@]}"; do
     fi
     if [ "$kind" = "node" ]; then
       run_node_case "$version" "$engine_dir" "$file"
-    else
+    elif [ "$kind" = "bun" ]; then
       run_bun_case "$engine_dir" "$file"
+    else
+      run_typescript_case "$engine_dir" "$file"
     fi
     if [ $? -eq 0 ]; then
       RESULTS["$i|$engine"]="✅"

@@ -25,6 +25,7 @@ jobs:
             node lts
             node latest
             bun latest
+            typescript latest
           # Most cases below are ESM, so set the fallback here instead of
           # repeating "// type: module" on each -- the one CommonJS case
           # still declares its own "// type: commonjs" to override it.
