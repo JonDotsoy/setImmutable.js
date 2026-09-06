@@ -11,6 +11,11 @@ name: Publish (PR preview)
 # version would only work for the PR's first push. Instead this appends the
 # run number (monotonically increasing, unique per workflow run) as the
 # real prerelease number, so every push gets a fresh, publishable version.
+#
+# The dist-tag is inferred from that same prerelease identifier, not
+# hardcoded: "0.2.0-rc.1" publishes under "rc", "0.2.0-beta.2" would
+# publish under "beta", and a plain release version with no prerelease
+# identifier (e.g. "0.1.0") publishes under "latest".
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -41,16 +46,24 @@ jobs:
       - name: Ensure npm supports Trusted Publishing
         run: npm install -g npm@latest
 
-      - name: Set unique PR-preview version
+      - name: Set unique PR-preview version and dist-tag
         run: |
-          BASE_VERSION=$(node -e "console.log(require('./package.json').version.replace(/-rc\.\d+$/, ''))")
-          VERSION="${BASE_VERSION}-rc.${{ github.run_number }}"
+          RAW_VERSION=$(node -e "console.log(require('./package.json').version)")
+          if [[ "$RAW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-([A-Za-z]+)(\.[0-9]+)?$ ]]; then
+            TAG="${BASH_REMATCH[1]}"
+            BASE_VERSION="${RAW_VERSION%-*}"
+            VERSION="${BASE_VERSION}-${TAG}.${{ github.run_number }}"
+          else
+            TAG="latest"
+            VERSION="$RAW_VERSION"
+          fi
           npm pkg set version="$VERSION"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "Publishing $VERSION"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "Publishing $VERSION under dist-tag $TAG"
 
       - name: Publish
-        run: npm publish --tag rc
+        run: npm publish --tag "$TAG"
 
       # GitHub has no notion of a package's own version history, so a
       # Release is the closest thing to a changelog entry for this
