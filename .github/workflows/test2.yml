@@ -30,33 +30,49 @@ jobs:
           # repeating "// type: module" on each -- the one CommonJS case
           # still declares its own "// type: commonjs" to override it.
           default-type: module
-          # Every generated file gets Node's built-in "assert" module
-          # injected automatically as `assert` -- a case just calls
-          # assert.* without ever importing/requiring it itself.
+          # Every generated file gets Node's built-in "assert" module and
+          # expect-type's `expectTypeOf` injected automatically as
+          # `assert`/`expectTypeOf` -- a case just calls them without
+          # ever importing/requiring either itself. setimmutable ships
+          # no .d.ts in the published package (see README's TypeScript
+          # section), so `expectTypeOf(...).toBeFunction`/`.toBeObject`
+          # is what stays meaningful and stable here -- a structural
+          # `.toEqualTypeOf<ExactShape>()` against its untyped return
+          # value was tried and dropped: it passed for a deliberately
+          # wrong shape under a static import, and failed for the
+          # correct shape under `require`, both against the same
+          # typescript@latest (7.0.2) -- an expect-type/TS7 interaction
+          # with implicit-any values, not something these cases should
+          # depend on.
           cases: |
             // title: Static ESM import: import set from "setimmutable"
             import set from "setimmutable"
+            expectTypeOf(set).toBeFunction
             assert.strictEqual(typeof set, "function")
             set({}, "a.b.c", 1)
             ---
             // title: CommonJS require: const set = require("setimmutable")
             // type: commonjs
             const set = require("setimmutable")
+            expectTypeOf(set).toBeFunction
             assert.strictEqual(typeof set, "function")
             set({}, "a.b.c", 1)
             ---
             // title: Static ESM import with an array path
             import set from "setimmutable"
+            expectTypeOf(set).toBeFunction
             assert.strictEqual(typeof set, "function")
             set({}, ["a", "b", "c"], 1)
             ---
             // title: Dynamic ESM import: const { default: set } = await import("setimmutable")
             const { default: set } = await import("setimmutable")
+            expectTypeOf(set).toBeFunction
             assert.strictEqual(typeof set, "function")
             set({}, "a.b.c", 1)
             ---
             // title: Map: static ESM import + array-of-pairs mapping
             import map from "setimmutable/map"
+            expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
             map({}, [
               [["a", "b", "c"], 1],
@@ -65,6 +81,7 @@ jobs:
             ---
             // title: Map: static ESM import + imperative callback mapping
             import map from "setimmutable/map"
+            expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
             map({}, (set) => {
               set(["a", "b", "c"], 1)
@@ -73,6 +90,7 @@ jobs:
             ---
             // title: Map: static ESM import + object-literal callback mapping
             import map from "setimmutable/map"
+            expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
             map({}, (set) => ({
               a: {
@@ -84,6 +102,7 @@ jobs:
             // title: Map: CommonJS require + array-of-pairs mapping
             // type: commonjs
             const map = require("setimmutable/map")
+            expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
             map({}, [
               [["a", "b", "c"], 1],
@@ -93,6 +112,7 @@ jobs:
             // title: Map: CommonJS require + imperative callback mapping
             // type: commonjs
             const map = require("setimmutable/map")
+            expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
             map({}, (set) => {
               set(["a", "b", "c"], 1)
@@ -102,6 +122,7 @@ jobs:
             // title: Map: CommonJS require + object-literal callback mapping
             // type: commonjs
             const map = require("setimmutable/map")
+            expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
             map({}, (set) => ({
               a: {
@@ -112,6 +133,7 @@ jobs:
             ---
             // title: Map: dynamic ESM import + array-of-pairs mapping
             const { default: map } = await import("setimmutable/map")
+            expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
             map({}, [
               [["a", "b", "c"], 1],
@@ -120,6 +142,7 @@ jobs:
             ---
             // title: Map: dynamic ESM import + imperative callback mapping
             const { default: map } = await import("setimmutable/map")
+            expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
             map({}, (set) => {
               set(["a", "b", "c"], 1)
@@ -128,6 +151,7 @@ jobs:
             ---
             // title: Map: dynamic ESM import + object-literal callback mapping
             const { default: map } = await import("setimmutable/map")
+            expectTypeOf(map).toBeFunction
             assert.strictEqual(typeof map, "function")
             map({}, (set) => ({
               a: {
@@ -139,26 +163,31 @@ jobs:
             // title: Key-path: dot-separated string ("a.b.c")
             import set from "setimmutable"
             const result = set({}, "a.b.c", 1)
+            expectTypeOf(result).toBeObject
             assert.deepStrictEqual(result, { a: { b: { c: 1 } } })
             ---
             // title: Key-path: single string key ("a")
             import set from "setimmutable"
             const result = set({}, "a", 1)
+            expectTypeOf(result).toBeObject
             assert.deepStrictEqual(result, { a: 1 })
             ---
             // title: Key-path: array of string keys (["a", "b", "c"])
             import set from "setimmutable"
             const result = set({}, ["a", "b", "c"], 1)
+            expectTypeOf(result).toBeObject
             assert.deepStrictEqual(result, { a: { b: { c: 1 } } })
             ---
             // title: Key-path: array with a numeric index (["people", 0, "firstName"])
             import set from "setimmutable"
             const result = set({}, ["people", 0, "firstName"], "Ana")
+            expectTypeOf(result).toBeObject
             assert.deepStrictEqual(result, { people: [{ firstName: "Ana" }] })
             ---
             // title: Key-path: bracket/index string ("[0][1][2]")
             import set from "setimmutable"
             const result = set({}, "[0][1][2]", "a")
+            expectTypeOf(result).toBeObject
             // lodash.setWith creates sparse arrays here (real holes, not
             // `null` elements) -- `[, x]` is a hole-preserving literal.
             assert.deepStrictEqual(result, { "0": [, [, , "a"]] })
