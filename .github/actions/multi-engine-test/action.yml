@@ -1,0 +1,172 @@
+name: 'Multi-engine case tester'
+description: >-
+  Builds and packs this repo, then runs a set of code "cases" against a set
+  of JS engines (several Node.js versions and/or Bun), and posts (or
+  updates) one PR comment with a syntax x engine results table.
+inputs:
+  engines:
+    description: >-
+      Newline-separated list of engines to test, e.g.:
+        node 6
+        node 12
+        node lts
+        bun latest
+        typescript latest
+      "typescript <version>" (version optional, defaults to latest) is
+      different from the others: it never executes a case, it only
+      type-checks it with `tsc --noEmit` (against a copy renamed to
+      .mts/.cts, matching the case's own .mjs/.js split).
+    required: true
+  cases:
+    description: >-
+      Code snippets to run, one per "case". Separate cases with a line
+      containing only "---". Each case is executed as a standalone script
+      against every engine above, with "setimmutable" installed from the
+      tarball this action builds, plus two opaque injections into the
+      generated file -- a case just uses them, it never imports/requires
+      either itself:
+        assert          Node's built-in "assert" module.
+        expectTypeOf    expect-type's type-assertion helper. Under the
+                         "typescript" engine this is a real compile-time
+                         type check; on every node/bun engine it's still
+                         the real expect-type runtime, which no-ops
+                         rather than throwing, so the same case works
+                         everywhere without special-casing per engine.
+      A case can lead with any of these "// key: value" metadata comments, in
+      any order -- each is stripped before the code runs, so a case
+      never has to also be valid syntax:
+        // title: <label>        results-table label (default: the
+                                  code's own first line)
+        // filename: <name>      the filename the case runs as (default:
+                                  case-N.js or case-N.mjs)
+        // type: module|commonjs forces .mjs/.js (default: the
+                                  "default-type" input below, or -- if
+                                  that's unset too -- inferred from a
+                                  static/bare `import` or an `await`
+                                  anywhere in the code, else CommonJS)
+      e.g.:
+        // title: Dynamic import
+        // filename: dynamic-import.mjs
+        // type: module
+        const { default: set } = await import("setimmutable")
+    required: true
+  default-type:
+    description: >-
+      Fallback "module"/"commonjs" used for any case that doesn't declare
+      its own "// type:" comment, instead of inferring it from the case's
+      code. Leave unset to keep inferring per case.
+    required: false
+    default: ''
+  github-token:
+    description: Token used to read/post the PR comment.
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: 'composite'
+  steps:
+    # The repo's "build" script (package.json) shells out to the `bun`
+    # CLI to transpile src/*.ts, so it must be on PATH before "npm run
+    # build" below, same as the "tc" jobs in test.yml.
+    - uses: oven-sh/setup-bun@v2
+
+    - name: Build package tarball
+      shell: bash
+      run: |
+        npm run build
+        npm pack
+        mv setimmutable-*.tgz "$RUNNER_TEMP/setimmutable.tgz"
+
+    # Cache keys computed here (rather than inlined into each cache
+    # step's "key:") so a multi-line input like "engines" never has to
+    # be embedded directly into a cache key string.
+    - name: Compute cache keys
+      id: cache-keys
+      shell: bash
+      env:
+        ENGINES_INPUT: ${{ inputs.engines }}
+      run: |
+        echo "engines-hash=$(echo "$ENGINES_INPUT" | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        # Bun's "latest" isn't pinned to a version, so its cache is
+        # rotated weekly instead of kept forever -- long enough to skip
+        # redundant downloads across nearby runs, short enough that
+        # "bun latest" doesn't silently stay stale for months.
+        echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
+    # Node versions installed via nvm inside run-matrix.sh -- keyed on
+    # the actual engines list, so nvm skips re-downloading a version
+    # it's already restored from cache (it only fetches what's missing).
+    - name: Cache nvm Node installs
+      uses: actions/cache@v4
+      with:
+        path: ~/.nvm
+        key: multi-engine-test-nvm-${{ runner.os }}-${{ steps.cache-keys.outputs.engines-hash }}
+        restore-keys: |
+          multi-engine-test-nvm-${{ runner.os }}-
+
+    # The Bun binary run-matrix.sh installs for "bun ..." engines
+    # (separate from the oven-sh/setup-bun@v2 above, which only sets up
+    # Bun for the build step). run-matrix.sh skips reinstalling when
+    # this is already present, so a cache hit avoids the download
+    # entirely instead of just speeding it up.
+    - name: Cache Bun install
+      uses: actions/cache@v4
+      with:
+        path: ~/.bun
+        key: multi-engine-test-bun-${{ runner.os }}-${{ steps.cache-keys.outputs.week }}
+
+    # npm's own download cache, shared across every per-engine
+    # `npm install <tarball>` in run-matrix.sh -- keyed on package.json
+    # since that's what determines which dependency versions get
+    # fetched.
+    - name: Cache npm registry cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: multi-engine-test-npm-${{ runner.os }}-${{ hashFiles('package.json') }}
+        restore-keys: |
+          multi-engine-test-npm-${{ runner.os }}-
+
+    - name: Run cases across engines
+      id: run
+      shell: bash
+      env:
+        ENGINES_INPUT: ${{ inputs.engines }}
+        CASES_INPUT: ${{ inputs.cases }}
+        DEFAULT_TYPE: ${{ inputs.default-type }}
+        TARBALL: ${{ runner.temp }}/setimmutable.tgz
+      run: bash "${{ github.action_path }}/run-matrix.sh"
+
+    - name: Comment on PR
+      if: always() && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      env:
+        RESULTS_TABLE: ${{ steps.run.outputs.table }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const marker = '<!-- multi-engine-test-report -->'
+          const body = `${marker}\n${process.env.RESULTS_TABLE}\n`
+
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            per_page: 100
+          })
+          const existing = comments.find((comment) => comment.body?.includes(marker))
+
+          if (existing) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existing.id,
+              body
+            })
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            })
+          }

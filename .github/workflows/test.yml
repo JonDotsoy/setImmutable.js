@@ -1,8 +1,15 @@
 name: Test
 
 on:
+  # push runs the tc/tc01-types/report jobs below (the actual behavior
+  # test suite via mocha, plus tsc type tests). pull_request instead
+  # runs only "multi-engine" (see its own `if:`), the engine/syntax
+  # compatibility matrix via ./.github/actions/multi-engine-test, which
+  # posts its own PR comment -- kept as a separate job rather than a
+  # separate workflow file since both live in this same Test workflow.
   push:
   pull_request:
+  workflow_dispatch:
 
 env:
   # Controls where the TC jobs below that install "setimmutable" as an
@@ -26,22 +33,11 @@ env:
   PACKAGE_SOURCE: pack
 
 jobs:
-  # TC02-TC06 all run test/integration/tc-published-package.js (shared
-  # script, parameterized by the TC_ID env var) against the package
-  # under test, one Node.js version each via the matrix below (TC01 is
-  # the separate types job further down):
-  #   - TC02: Node 6, the LTS active through 2017 and the version pinned
-  #     in the project's original .travis.yml.
-  #   - TC03: Node 10 ("Dubnium"), the LTS active for most of 2019 --
-  #     there's no repo-history anchor for 2019 the way TC02 has, so
-  #     this is representative of a typical production pin that year.
-  #   - TC04: Node 12 ("Erbium"), the *other* Node LTS touching 2019 --
-  #     it only became Active LTS in October 2019 (the last ~3 months
-  #     of the year), so together TC03+TC04 cover "2019" end to end.
-  #   - TC05: whatever Node LTS is current today.
-  #   - TC06: whatever Node "Current" release is out today -- ahead of
-  #     the LTS line, catching anything that only breaks on the newest
-  #     Node before it ever reaches TC05.
+  # Runs test/integration/tc-published-package.js against the package
+  # under test on Node "Current" -- older/LTS Node versions (6, 10, 12,
+  # lts) are no longer duplicated here since the "multi-engine" job
+  # below already covers that same compatibility question, generically,
+  # across those same versions plus Bun and a type-check pass.
   tc:
     name: "${{ matrix.tc_id }}: smoke / install setimmutable (${{ matrix.label }})"
     runs-on: ubuntu-latest
@@ -49,18 +45,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - tc_id: TC02
-            node_version: '6'
-            label: "node 6, 2017"
-          - tc_id: TC03
-            node_version: '10'
-            label: "node 10, 2019"
-          - tc_id: TC04
-            node_version: '12'
-            label: "node 12, 2019"
-          - tc_id: TC05
-            node_version: "lts/*"
-            label: "node lts/*, current"
           - tc_id: TC06
             node_version: latest
             label: "node latest, current"
@@ -97,33 +81,21 @@ jobs:
         working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
       - name: Run test (dynamic import("setimmutable"))
         id: test_import_dynamic
-        # Top-level `await` in an ES module (needed for this literal
-        # `await import(...)` style) wasn't unflagged until Node 14.8 --
-        # expected to fail on TC02 (Node 6, no ESM support at all: fails
-        # to even parse the `import` keyword) and TC03/TC04 (Node 10/12:
-        # parse `import()` fine but reject top-level `await` as a
-        # reserved word). continue-on-error so that known, inherent gap
-        # doesn't block CI on those older Node versions.
+        # Top-level `await`/ESM support is a non-issue now that this
+        # matrix only runs Node latest -- the older-Node language-gap
+        # cases (no ESM at all, or ESM without top-level await) that
+        # used to need continue-on-error here are covered instead by
+        # the "multi-engine" job's own node 6/10/12/lts legs.
         run: node tc-import.mjs
         working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
-        continue-on-error: true
       - name: Run test (static import setimmutable from "setimmutable")
         id: test_import_static
-        # Unlike tc-import.mjs, this has no top-level `await`, so it only
-        # needs ESM support at all -- unavailable pre-Node-12 (TC02/TC03
-        # fail to parse `import` as a statement, same as the dynamic-
-        # import step above), but expected to work unflagged from Node
-        # 12 onward (TC04-TC06).
         run: node tc-import-static.mjs
         working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
-        continue-on-error: ${{ matrix.tc_id == 'TC02' || matrix.tc_id == 'TC03' }}
       - name: Run test (bare import "setimmutable")
         id: test_bare_import
-        # Same ESM-support constraint as the static-import step above: no
-        # top-level await needed, just ESM at all.
         run: node tc-bare-import.mjs
         working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
-        continue-on-error: ${{ matrix.tc_id == 'TC02' || matrix.tc_id == 'TC03' }}
       - name: Run test (bare import "setimmutable/map")
         id: test_bare_import_map
         # Exercises package.json's "exports" map: Node's ESM resolver (as
@@ -132,7 +104,6 @@ jobs:
         # fail with ERR_MODULE_NOT_FOUND even on modern Node.
         run: node tc-bare-import-map.mjs
         working-directory: ${{ runner.temp }}/${{ matrix.tc_id }}
-        continue-on-error: ${{ matrix.tc_id == 'TC02' || matrix.tc_id == 'TC03' }}
       - name: Write result summary
         # `steps.<id>.outcome` is the step's *real* pass/fail, unaffected
         # by continue-on-error (unlike `.conclusion`, and unlike anything
@@ -241,12 +212,8 @@ jobs:
             const fs = require('fs')
             const path = require('path')
 
-            const TC_ORDER = ['TC02', 'TC03', 'TC04', 'TC05', 'TC06']
+            const TC_ORDER = ['TC06']
             const TC_COLUMN_LABEL = {
-              TC02: 'Node 6',
-              TC03: 'Node 10',
-              TC04: 'Node 12',
-              TC05: 'Node LTS',
               TC06: 'Node Latest'
             }
 
@@ -314,8 +281,6 @@ jobs:
               ? `\n\nTypes (\`tsc\`, TC01 only): ${typesJob.conclusion === 'success' ? '✅' : '❌'} ${typesJob.conclusion}`
               : ''
 
-            const legend = '\n\n❌ on an older Node version for an import/`await import()` syntax is a known, documented language-support gap (see README\'s "TypeScript"/CI notes), not a regression -- `require()` and the full behavior suite are expected to be ✅ everywhere.'
-
             // What `npm publish` would actually ship -- captured by the
             // "Build and pack (dry run)" step above via `npm pack
             // --dry-run --json`. continue-on-error there, so a missing or
@@ -335,7 +300,7 @@ jobs:
 
             const marker = '<!-- setimmutable-test-report -->'
             const headSha = context.payload.pull_request.head.sha.slice(0, 7)
-            const body = `${marker}\n### Test results (${headSha})\n\n${header}\n${separator}\n${rows}${typesLine}${legend}${packSection}${publishedScriptDetails}\n`
+            const body = `${marker}\n### Test results (${headSha})\n\n${header}\n${separator}\n${rows}${typesLine}${packSection}${publishedScriptDetails}\n`
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -360,3 +325,237 @@ jobs:
                 body
               })
             }
+
+  # Exercises ./.github/actions/multi-engine-test: it packs this repo,
+  # then runs every "case" below (a code snippet importing
+  # "setimmutable") against every "engine" below (a Node.js version,
+  # Bun, or a type-check-only TypeScript pass), and posts its own
+  # syntax x engine results table as a PR comment -- only meaningful on
+  # a pull_request event (a bare push has no PR to comment on).
+  multi-engine:
+    name: Multi-engine syntax/type compatibility
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/multi-engine-test
+        with:
+          engines: |
+            node 6
+            node 10
+            node 12
+            node lts
+            node latest
+            bun latest
+            typescript latest
+          # Most cases below are ESM, so set the fallback here instead of
+          # repeating "// type: module" on each -- the one CommonJS case
+          # still declares its own "// type: commonjs" to override it.
+          default-type: module
+          # Every generated file gets Node's built-in "assert" module and
+          # expect-type's `expectTypeOf` injected automatically as
+          # `assert`/`expectTypeOf` -- a case just calls them without
+          # ever importing/requiring either itself. setimmutable ships
+          # no .d.ts in the published package (see README's TypeScript
+          # section), so `expectTypeOf(...).toBeFunction`/`.toBeObject`
+          # is what stays meaningful and stable here -- a structural
+          # `.toEqualTypeOf<ExactShape>()` against its untyped return
+          # value was tried and dropped: it passed for a deliberately
+          # wrong shape under a static import, and failed for the
+          # correct shape under `require`, both against the same
+          # typescript@latest (7.0.2) -- an expect-type/TS7 interaction
+          # with implicit-any values, not something these cases should
+          # depend on.
+          cases: |
+            // title: Static ESM import: import set from "setimmutable"
+            import set from "setimmutable"
+            expectTypeOf(set).toBeFunction
+            assert.strictEqual(typeof set, "function")
+            const result = set({}, "a.b.c", 1)
+            expectTypeOf(result).toBeObject
+            ---
+            // title: CommonJS require: const set = require("setimmutable")
+            // type: commonjs
+            const set = require("setimmutable")
+            expectTypeOf(set).toBeFunction
+            assert.strictEqual(typeof set, "function")
+            const result = set({}, "a.b.c", 1)
+            expectTypeOf(result).toBeObject
+            ---
+            // title: Static ESM import with an array path
+            import set from "setimmutable"
+            expectTypeOf(set).toBeFunction
+            assert.strictEqual(typeof set, "function")
+            const result = set({}, ["a", "b", "c"], 1)
+            expectTypeOf(result).toBeObject
+            ---
+            // title: Dynamic ESM import: const { default: set } = await import("setimmutable")
+            const { default: set } = await import("setimmutable")
+            expectTypeOf(set).toBeFunction
+            assert.strictEqual(typeof set, "function")
+            const result = set({}, "a.b.c", 1)
+            expectTypeOf(result).toBeObject
+            ---
+            // title: Map: static ESM import + array-of-pairs mapping
+            import map from "setimmutable/map"
+            expectTypeOf(map).toBeFunction
+            assert.strictEqual(typeof map, "function")
+            const result = map({}, [
+              [["a", "b", "c"], 1],
+              ["a.b.d", 2]
+            ])
+            expectTypeOf(result).toBeObject
+            ---
+            // title: Map: static ESM import + imperative callback mapping
+            import map from "setimmutable/map"
+            expectTypeOf(map).toBeFunction
+            assert.strictEqual(typeof map, "function")
+            const result = map({}, (set) => {
+              set(["a", "b", "c"], 1)
+              set("a.b.d", 2)
+            })
+            expectTypeOf(result).toBeObject
+            ---
+            // title: Map: static ESM import + object-literal callback mapping
+            import map from "setimmutable/map"
+            expectTypeOf(map).toBeFunction
+            assert.strictEqual(typeof map, "function")
+            const result = map({}, (set) => ({
+              a: {
+                b: { c: set(1) },
+                l: { o: { t: set(2) } }
+              }
+            }))
+            expectTypeOf(result).toBeObject
+            ---
+            // title: Map: CommonJS require + array-of-pairs mapping
+            // type: commonjs
+            const map = require("setimmutable/map")
+            expectTypeOf(map).toBeFunction
+            assert.strictEqual(typeof map, "function")
+            const result = map({}, [
+              [["a", "b", "c"], 1],
+              ["a.b.d", 2]
+            ])
+            expectTypeOf(result).toBeObject
+            ---
+            // title: Map: CommonJS require + imperative callback mapping
+            // type: commonjs
+            const map = require("setimmutable/map")
+            expectTypeOf(map).toBeFunction
+            assert.strictEqual(typeof map, "function")
+            const result = map({}, (set) => {
+              set(["a", "b", "c"], 1)
+              set("a.b.d", 2)
+            })
+            expectTypeOf(result).toBeObject
+            ---
+            // title: Map: CommonJS require + object-literal callback mapping
+            // type: commonjs
+            const map = require("setimmutable/map")
+            expectTypeOf(map).toBeFunction
+            assert.strictEqual(typeof map, "function")
+            const result = map({}, (set) => ({
+              a: {
+                b: { c: set(1) },
+                l: { o: { t: set(2) } }
+              }
+            }))
+            expectTypeOf(result).toBeObject
+            ---
+            // title: Map: dynamic ESM import + array-of-pairs mapping
+            const { default: map } = await import("setimmutable/map")
+            expectTypeOf(map).toBeFunction
+            assert.strictEqual(typeof map, "function")
+            const result = map({}, [
+              [["a", "b", "c"], 1],
+              ["a.b.d", 2]
+            ])
+            expectTypeOf(result).toBeObject
+            ---
+            // title: Map: dynamic ESM import + imperative callback mapping
+            const { default: map } = await import("setimmutable/map")
+            expectTypeOf(map).toBeFunction
+            assert.strictEqual(typeof map, "function")
+            const result = map({}, (set) => {
+              set(["a", "b", "c"], 1)
+              set("a.b.d", 2)
+            })
+            expectTypeOf(result).toBeObject
+            ---
+            // title: Map: dynamic ESM import + object-literal callback mapping
+            const { default: map } = await import("setimmutable/map")
+            expectTypeOf(map).toBeFunction
+            assert.strictEqual(typeof map, "function")
+            const result = map({}, (set) => ({
+              a: {
+                b: { c: set(1) },
+                l: { o: { t: set(2) } }
+              }
+            }))
+            expectTypeOf(result).toBeObject
+            ---
+            // title: Key-path: dot-separated string ("a.b.c")
+            import set from "setimmutable"
+            const result = set({}, "a.b.c", 1)
+            expectTypeOf(result).toBeObject
+            assert.deepStrictEqual(result, { a: { b: { c: 1 } } })
+            ---
+            // title: Key-path: single string key ("a")
+            import set from "setimmutable"
+            const result = set({}, "a", 1)
+            expectTypeOf(result).toBeObject
+            assert.deepStrictEqual(result, { a: 1 })
+            ---
+            // title: Key-path: array of string keys (["a", "b", "c"])
+            import set from "setimmutable"
+            const result = set({}, ["a", "b", "c"], 1)
+            expectTypeOf(result).toBeObject
+            assert.deepStrictEqual(result, { a: { b: { c: 1 } } })
+            ---
+            // title: Key-path: array with a numeric index (["people", 0, "firstName"])
+            import set from "setimmutable"
+            const result = set({}, ["people", 0, "firstName"], "Ana")
+            expectTypeOf(result).toBeObject
+            assert.deepStrictEqual(result, { people: [{ firstName: "Ana" }] })
+            ---
+            // title: Key-path: bracket/index string ("[0][1][2]")
+            import set from "setimmutable"
+            const result = set({}, "[0][1][2]", "a")
+            expectTypeOf(result).toBeObject
+            // lodash.setWith creates sparse arrays here (real holes, not
+            // `null` elements) -- `[, x]` is a hole-preserving literal.
+            assert.deepStrictEqual(result, { "0": [, [, , "a"]] })
+            ---
+            // title: Key-path: descending into an existing partial object ({ a: {} })
+            import set from "setimmutable"
+            const result = set({ a: {} }, "a.b.c", "hello")
+            expectTypeOf(result).toBeObject
+            assert.deepStrictEqual(result, { a: { b: { c: "hello" } } })
+            ---
+            // title: Path depth: 31 segments (TypeScript's type-level max, per README)
+            import set from "setimmutable"
+            const path31 = Array.from({ length: 31 }, (_, i) => "k" + i)
+            const result = set({}, path31.join("."), "leaf")
+            // Built via JSON.parse (rather than reassigning a variable
+            // from "leaf" to a nested object across a loop) so the
+            // expected value's type is "any" instead of narrowing to
+            // "string" from its first assignment -- reassigning that to
+            // an object further down would be a real type error here.
+            const expectedJson31 = path31.reduceRight((acc, key) => `{"${key}":${acc}}`, JSON.stringify("leaf"))
+            const expected31 = JSON.parse(expectedJson31)
+            expectTypeOf(result).toBeObject
+            assert.deepStrictEqual(result, expected31)
+            ---
+            // title: Path depth: 32 segments (past TypeScript's type-level max -- runtime has no such limit)
+            import set from "setimmutable"
+            const path32 = Array.from({ length: 32 }, (_, i) => "k" + i)
+            const result = set({}, path32.join("."), "leaf")
+            const expectedJson32 = path32.reduceRight((acc, key) => `{"${key}":${acc}}`, JSON.stringify("leaf"))
+            const expected32 = JSON.parse(expectedJson32)
+            expectTypeOf(result).toBeObject
+            assert.deepStrictEqual(result, expected32)
