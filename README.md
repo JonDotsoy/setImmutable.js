@@ -66,7 +66,8 @@ class ComplexConstructor {
 **Example:**
 
 ```javascript
-// import clone from 'setimmutable/clone'
+import clone from 'setimmutable/clone'
+
 function customClone (objValue, srcValue) {
     switch (objValue.constructor) {
         // My custom class
@@ -144,6 +145,8 @@ Applies several `set` updates to `object` in a single call: `import map from 'se
 **1. An array of `[path, value]` pairs** — each pair is applied in order with `set`, so a later path can see the result of an earlier one.
 
 ```javascript
+import map from 'setimmutable/map'
+
 map(object, [
   [['a', 'b', 'c'], 1],
   ['a.b.d', 2]
@@ -154,6 +157,8 @@ map(object, [
 **2. A function `set => { ... }` that calls `set(path, value)` directly** — same two-argument form as the top-level `set`, just batched. The function's return value is ignored.
 
 ```javascript
+import map from 'setimmutable/map'
+
 map(object, set => {
   set(['a', 'b', 'c'], 1)
   set('a.b.d', 2)
@@ -164,6 +169,8 @@ map(object, set => {
 **3. A function `set => (object literal)` that returns the shape to set** — call `set(value)` (one argument, no path) inline while building a plain object/array literal; `map` infers each value's path from where in the returned literal `set(value)` appears.
 
 ```javascript
+import map from 'setimmutable/map'
+
 map(object, set => ({
   a: {
     b: { c: set(1) },
