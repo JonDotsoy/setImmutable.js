@@ -3,6 +3,52 @@
 All notable changes to this project are documented in this file, derived from
 the git history of `package.json`'s `version` field.
 
+## [1.0.0] - 2026-09-07
+
+First stable release. No functional changes since 0.2.0 — this release
+promotes the existing `set`/`map`/`clone` API to 1.0.0. Consolidated feature
+set:
+
+- **`set(object, path, value, [customClone])`** — sets `value` at `path`
+  without mutating `object`. Walks `path` from the root and clones only the
+  nodes it visits (structural sharing), so every branch not on `path`, and
+  every sibling not touched, keeps its original reference — cheaper than a
+  deep clone and safe to use on `Object.freeze`d input (unlike `_.set`,
+  which silently mutates through a frozen root's unfrozen children).
+  - Accepts dot-separated string paths (`'a.b.c'`), array-of-keys paths
+    (`['a', 'b', 'c']`), and bracket/index string paths
+    (`'[0][1][2]'`, `'a[2].b'`).
+  - Creates any missing intermediate segment as a plain object, or an array
+    when the next segment is an index — same as `_.set`.
+  - Takes an optional `customClone(objValue, key)` to control how existing
+    objects on `path` are cloned, for constructors that need special
+    construction arguments instead of the default no-arg clone.
+- **`clone(value)`** — the default per-node clone `set` uses when no
+  `customClone` is given: a new, empty instance of `value.constructor`
+  (`new value.constructor()`, or `{}` if there is none). Exported standalone
+  as `setimmutable/clone` so a custom clone function can fall back to it.
+- **`map(object, mapping)`** — applies several `set` updates to `object` in
+  one call, still without mutating it. `mapping` accepts three syntaxes:
+  1. An array of `[path, value]` pairs, applied in order so later pairs see
+     earlier updates.
+  2. A function `set => { ... }` that calls `set(path, value)` directly,
+     batching plain `set` calls.
+  3. A function `set => (object literal)` that calls `set(value)` inline
+     inside a returned object/array literal — `map` infers each value's
+     path from its position in the literal.
+- **Subpath exports** — `setimmutable`, `setimmutable/map`, and
+  `setimmutable/clone` all resolve as both `require()` and ESM `import`
+  (via `package.json`'s `"exports"` map).
+- **TypeScript-aware source** — `src/setImmutable.ts` and `src/map.ts`
+  (array-of-pairs syntax only) are generic and path-aware: given a typed
+  input object and a literal path, the compiler infers the exact resulting
+  shape, including newly created keys, up to 31 path segments deep. Known
+  limits: bracket/index paths aren't parsed at the type level (use
+  array-of-keys for typed array indexing), `customClone`'s effect on the
+  result type isn't tracked, and `map`'s two function-based syntaxes stay
+  untyped. The published package itself still ships as plain JS with no
+  `.d.ts`.
+
 ## [0.2.0] - 2026-09-06
 
 - Add CI workflow (`tc01-types`, `tc` matrix TC02-TC06) that installs the
