@@ -4,6 +4,23 @@
 
 **SetImmutable** performs the update as a persistent (structural-sharing) operation instead: it walks `path`, and for each node it visits it clones just that node and reassigns the property, then returns a **new root object**. Every object *not* on `path` keeps its original reference, so the result is a shallow copy at each level of the path and the same object everywhere else — cheaper than a deep clone, and `===` on unrelated branches still holds.
 
+```javascript
+const state = {
+  user: { id: 42, address: { city: 'Santiago', zip: '8320000' } },
+  cart: { items: 3 }
+}
+
+const nextState = setImmutable(state, 'user.address.city', 'Valparaíso')
+
+state.user.address.city      // 'Santiago'    -- untouched
+nextState.user.address.city  // 'Valparaíso'  -- updated
+
+nextState === state           // false -- new root
+nextState.cart === state.cart // true  -- untouched branch keeps its reference
+```
+
+Only `user` and `user.address` (the nodes on the path) are cloned; `cart` and everything else keep their original reference, so unrelated selectors/components still see `===` and skip re-rendering.
+
 ## Installation
 Using npm:
 
@@ -45,6 +62,30 @@ const nextObjImmutable = setImmutable(immutableObj, 'a.b', 3)
 nextObjImmutable === immutableObj // false
 immutableObj.a.b                  // 1 -- unchanged
 ```
+
+## How it works
+`setImmutable(object, path, value)` splits `path` into its segments (e.g. `'user.payment.num'` → `['user', 'payment', 'num']`) and walks them one at a time, starting at `object`. At each segment it:
+
+1. **Clones the current node** — a shallow copy of the object/array it's standing on (see [Clone](#setimmutable-with-complex-constructors) for how the clone is made).
+2. **Assigns the clone onto its parent's clone**, under the same key, replacing the reference the parent used to hold.
+3. **Descends** into the *original* child to keep walking, repeating step 1 on it.
+
+At the last segment, instead of cloning it just assigns `value` under that key. The result is a chain of fresh objects from the root down to the leaf — one clone per path segment — while every property that isn't itself a segment of `path` is copied by reference (not deep-cloned) from the original node onto its new clone.
+
+That's why the outcome looks like this for `setImmutable(state, 'user.payment.num', 9999)`:
+
+```
+state                 (cloned — it's segment 0)
+├─ user               (cloned — it's segment 1)
+│  ├─ payment         (cloned — it's segment 2, the parent of the leaf)
+│  │  ├─ num  = 9999  (new value, the leaf)
+│  │  └─ code         (same reference as state.user.payment.code)
+│  ├─ address          (same reference as state.user.address)
+│  └─ job              (same reference as state.user.job)
+└─ app                 (same reference as state.app)
+```
+
+Only the branch that leads to `value` is ever touched — `state`, `state.user` and `state.user.payment` become new objects, but `address`, `job`, `app` and `payment.code` keep the exact object/value they had before, so `===` on any of those still holds after the call.
 
 ## SetImmutable with complex constructors
 To update the object tree is used the reference constructor. This makes a new object and assigns all old properties to the new object. But there are times when the constructor is complex and requires special properties to be declared.
