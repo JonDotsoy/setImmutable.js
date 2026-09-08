@@ -1,4 +1,4 @@
-import setWith = require('lodash.setwith')
+import setWith = require('./setWith')
 import defaultCloneObject = require('./clone')
 import type { SetImmutableResult } from './path-types'
 
