@@ -44,6 +44,47 @@ const r2 = setImmutable(nested, 'app.title', 42)
 expectTypeOf(r2.app.title).toEqualTypeOf<number>()
 expectTypeOf(r2.count).toEqualTypeOf<number>()
 
+// deeper nesting with several sibling branches -- the type-level
+// counterpart to test/tests.js's "only clones the nodes on path" runtime
+// test: the leaf's type changes, its sibling keeps its own type, and so
+// does every branch not on the path at all.
+type UserState = {
+  user: {
+    address: { city: string, zip: string }
+    payment: { num: string, code: string }
+    job: { title: string }
+  }
+  app: { theme: string }
+}
+const userState: UserState = {
+  user: {
+    address: { city: 'Santiago', zip: '8320000' },
+    payment: { num: '4111-1111-1111-1111', code: '007' },
+    job: { title: 'Engineer' }
+  },
+  app: { theme: 'dark' }
+}
+
+const rUser = setImmutable(userState, 'user.payment.num', 9999)
+expectTypeOf(rUser.user.payment.num).toEqualTypeOf<number>()
+expectTypeOf(rUser.user.payment.code).toEqualTypeOf<string>()
+expectTypeOf(rUser.user.address).toEqualTypeOf<{ city: string, zip: string }>()
+expectTypeOf(rUser.user.job).toEqualTypeOf<{ title: string }>()
+expectTypeOf(rUser.app).toEqualTypeOf<{ theme: string }>()
+
+// a second, chained setImmutable call onto a path that doesn't exist yet
+// on rUser's type ('user.education.name') -- the missing intermediate
+// ('education') is created, the new leaf's type is inferred from the
+// value, and everything already on rUser's type (including the update
+// from the previous call) is still there, untouched.
+const rUser2 = setImmutable(rUser, 'user.education.name', 'MIT')
+expectTypeOf(rUser2.user.education.name).toEqualTypeOf<string>()
+expectTypeOf(rUser2.user.payment.num).toEqualTypeOf<number>()
+expectTypeOf(rUser2.user.payment.code).toEqualTypeOf<string>()
+expectTypeOf(rUser2.user.address).toEqualTypeOf<{ city: string, zip: string }>()
+expectTypeOf(rUser2.user.job).toEqualTypeOf<{ title: string }>()
+expectTypeOf(rUser2.app).toEqualTypeOf<{ theme: string }>()
+
 // creating a path that doesn't exist yet on the input type.
 const r3 = setImmutable({} as {}, 'a.b.c', 1)
 expectTypeOf(r3.a.b.c).toEqualTypeOf<number>()

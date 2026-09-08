@@ -41,6 +41,45 @@ describe('setImmutable', () => {
     expect(store.people[0].name).to.be(nextStore.people[0].name)
   })
 
+  it('only clones the nodes on path, keeping every other branch by reference', () => {
+    const state = {
+      user: {
+        address: {
+          city: 'Santiago',
+          zip: '8320000'
+        },
+        payment: {
+          num: '4111-1111-1111-1111',
+          code: '007'
+        },
+        job: {
+          title: 'Engineer'
+        }
+      },
+      app: {
+        theme: 'dark'
+      }
+    }
+    deepFreeze(state)
+
+    const nextState = setImmutable(state, 'user.payment.num', '9999-9999-9999-9999')
+
+    // Root and every node on the path are cloned.
+    expect(state).not.to.be(nextState)
+    expect(state.user).not.to.be(nextState.user)
+    expect(state.user.payment).not.to.be(nextState.user.payment)
+    expect(state.user.payment.num).not.to.be(nextState.user.payment.num)
+
+    // Everything else keeps its original reference (or value).
+    expect(state.user.address).to.be(nextState.user.address)
+    expect(state.user.payment.code).to.be(nextState.user.payment.code)
+    expect(state.user.job).to.be(nextState.user.job)
+    expect(state.app).to.be(nextState.app)
+
+    // The update actually landed on the leaf.
+    expect(nextState.user.payment.num).to.be('9999-9999-9999-9999')
+  })
+
   it('with advance object', () => {
     class complexConstructor {
       constructor (arg1, arg2) {
