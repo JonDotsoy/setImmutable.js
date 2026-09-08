@@ -52,11 +52,16 @@ function isObject (value: any): boolean {
 }
 
 function assignValue (object: any, key: Key, value: any): void {
-  if (key === '__proto__') {
-    Object.defineProperty(object, key, { configurable: true, enumerable: true, writable: true, value })
-  } else {
-    object[key] = value
-  }
+  object[key] = value
+}
+
+// Keys that would let a path reach into (and pollute) Object.prototype or a
+// constructor's prototype -- e.g. '__proto__.x', ['constructor', 'prototype',
+// 'x']. Same guard as lodash's post-CVE-2020-8203 baseSet: abort the whole
+// write (return the object unchanged) the moment one of these appears
+// anywhere in the path, rather than trying to sanitize just that segment.
+function isUnsafeKey (key: Key): boolean {
+  return key === '__proto__' || key === 'constructor' || key === 'prototype'
 }
 
 function setWith (object: any, path: Key | readonly Key[], value: any, customizer?: Customizer): any {
@@ -72,6 +77,11 @@ function setWith (object: any, path: Key | readonly Key[], value: any, customize
 
   while (nested != null && ++index < length) {
     const key = pathArr[index]
+
+    if (isUnsafeKey(key)) {
+      return object
+    }
+
     let newValue = value
 
     if (index !== lastIndex) {
