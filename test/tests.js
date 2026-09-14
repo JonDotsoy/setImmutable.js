@@ -80,6 +80,23 @@ describe('setImmutable', () => {
     expect(nextState.user.payment.num).to.be('9999-9999-9999-9999')
   })
 
+  it('clones every node on the path even when the new value equals the old one', () => {
+    const a = { foo: { tar: 'biz' } }
+    deepFreeze(a)
+
+    const b = setImmutable(a, 'foo.tar', 'biz')
+
+    // The root and every node on the path are still new objects,
+    // even though the leaf value didn't actually change.
+    expect(b).not.to.be(a)
+    expect(b.foo).not.to.be(a.foo)
+
+    // The leaf is a primitive, so "equal" just means "the same value" --
+    // there's nothing to mutate or clone at that level.
+    expect(b.foo.tar).to.be(a.foo.tar)
+    expect(b.foo.tar).to.be('biz')
+  })
+
   it('with advance object', () => {
     class complexConstructor {
       constructor (arg1, arg2) {
