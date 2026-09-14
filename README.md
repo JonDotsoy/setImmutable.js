@@ -87,6 +87,8 @@ state                 (cloned — it's segment 0)
 
 Only the branch that leads to `value` is ever touched — `state`, `state.user` and `state.user.payment` become new objects, but `address`, `job`, `app` and `payment.code` keep the exact object/value they had before, so `===` on any of those still holds after the call.
 
+The path walking and cloning above is implemented in-house (`toPath`, `set-with`, `get`) rather than on top of `lodash.setwith`/`lodash.get` — both were deprecated upstream, so this library carries no runtime dependency on them; the path syntax (dot-strings, bracket-index notation, array paths) stays exactly the same as before.
+
 ## SetImmutable with complex constructors
 To update the object tree is used the reference constructor. This makes a new object and assigns all old properties to the new object. But there are times when the constructor is complex and requires special properties to be declared.
 
@@ -167,6 +169,27 @@ function customClone (objValue, key) {
 
 set(object, '[0].people.[1].firstName', 'Lucky', customClone)
 // => [ { 'people': [..., Person { 'firstName': 'Lucky' } ] } ]
+```
+
+### `set.ifChanged(object, path, value, [customClone])`
+A variant of `set` that skips cloning entirely when `value` is already the value at `path`: `setImmutable.ifChanged(object, path, value, [customClone])`. Everything else — argument order, `customClone`, return type — is identical to `set` above.
+
+**Equality note:** the comparison uses [`Object.is`][Object.is] (not a deep-equal check), so it treats `NaN` as equal to itself and `-0`/`+0` as distinct, same as `Object.is` always does. It only skips cloning when the new value is *literally* the same primitive or the same object reference — a new object/array with equal-looking contents but a different reference still gets cloned, same as calling `set` directly.
+
+**Measure before reaching for this as an optimization:** `ifChanged` does one path read (equivalent to `_.get`) plus one comparison on every call. That's cheap in absolute terms, but not free — whether it actually saves anything depends on how many nodes are on `path` and how often the call happens to land on the same value. Profile the real use case before assuming "skips a clone" means "faster"; for a shallow, infrequent update the read alone can cost as much as the clone it's avoiding.
+
+**For React/Redux:** if the goal is avoiding unnecessary re-renders from new references, the current best practice is still memoizing at the selector/consumer layer (`useMemo`, [reselect][]) rather than leaning on `ifChanged` inside the store. `ifChanged` solves a narrower problem — skip the clone when you already know the value didn't change before calling `set` — it isn't a replacement for memoizing derived selectors.
+
+**Example**
+
+```javascript
+const state = { user: { address: { city: 'Santiago' } } }
+
+const same = setImmutable.ifChanged(state, 'user.address.city', 'Santiago')
+same === state // true -- nothing cloned, same value already there
+
+const next = setImmutable.ifChanged(state, 'user.address.city', 'Valparaíso')
+next === state // false -- value differs, clones exactly like set()
 ```
 
 ### `clone(value)`
@@ -325,3 +348,5 @@ function Reducer (state = initialState, action) {
 
 [lodash.set]: https://lodash.com/docs#set "_.set(object, path, value)"
 [redux]: http://redux.js.org/ "Redux is a predictable state container for JavaScript apps."
+[Object.is]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is "Object.is() - JavaScript | MDN"
+[reselect]: https://github.com/reduxjs/reselect "Selector library for Redux (and vanilla JS)"

@@ -1,4 +1,5 @@
-import setWith = require('lodash.setwith')
+import setWith = require('./set-with')
+import get = require('./get')
 import defaultCloneObject = require('./clone')
 import type { SetImmutableResult } from './path-types'
 
@@ -27,6 +28,19 @@ function setImmutable<T, P extends string | readonly (string | number)[], V> (
       return _cloneObj(objValue, srcValue, customizerCloneObject)
     }
   )
+}
+
+setImmutable.ifChanged = function ifChanged<T, P extends string | readonly (string | number)[], V> (
+  obj: T,
+  path: P,
+  val: V,
+  customizerCloneObject?: CustomizerCloneObject
+): SetImmutableResult<T, P, V> {
+  if (Object.is(get(obj, path), val)) {
+    return obj as SetImmutableResult<T, P, V>
+  }
+
+  return setImmutable(obj, path, val, customizerCloneObject)
 }
 
 export = setImmutable

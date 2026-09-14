@@ -3,6 +3,20 @@
 All notable changes to this project are documented in this file, derived from
 the git history of `package.json`'s `version` field.
 
+## [Unreleased]
+
+- **Removed the `lodash.setwith` runtime dependency**, deprecated upstream.
+  Replaced by an in-house path walker/cloner (`src/to-path.ts`,
+  `src/set-with.ts`) with the same behavior: dot-separated strings,
+  array-of-keys, and bracket/index string paths (`'[0][1][2]'`, `'a[2].b'`)
+  all still work exactly as before, including sparse-array creation for
+  numeric segments and the `customClone(objValue, key)` contract.
+- **`set.ifChanged(object, path, value, [customClone])`** — a variant of
+  `set` that returns `object` unchanged (no clone at any level) when
+  `value` is already `Object.is`-equal to the value at `path`; otherwise
+  behaves exactly like `set`. Backed by a small in-house `get` (also
+  replacing the now-deprecated `lodash.get`, never added as a dependency).
+
 ## [1.0.0] - 2026-09-07
 
 First stable release. No functional changes since 0.2.0 — this release

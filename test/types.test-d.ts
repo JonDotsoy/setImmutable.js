@@ -35,6 +35,13 @@ const a: A = { a: 1 }
 const r1 = setImmutable(a, 'a', 'foo')
 expectTypeOf(r1.a).toEqualTypeOf<string>()
 
+// setImmutable.ifChanged(object, path, value, [customClone]) has the same
+// path-aware return type as setImmutable itself.
+expectTypeOf(setImmutable.ifChanged).toBeFunction()
+
+const r1b = setImmutable.ifChanged(a, 'a', 'foo')
+expectTypeOf(r1b.a).toEqualTypeOf<string>()
+
 // multi-level: only the targeted leaf's type changes, everything else on
 // the shape is preserved as-is.
 type Nested = { app: { title: string }, count: number }

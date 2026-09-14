@@ -8,7 +8,11 @@
   "files": [
     "setImmutable.js",
     "map.js",
-    "clone.js"
+    "clone.js",
+    "to-path.js",
+    "is-index.js",
+    "set-with.js",
+    "get.js"
   ],
   "exports": {
     ".": "./setImmutable.js",
@@ -21,7 +25,7 @@
   },
   "scripts": {
     "prepublishOnly": "npm run build",
-    "build": "bun build src/setImmutable.ts --outfile setImmutable.js --target node --format cjs --no-bundle && bun build src/map.ts --outfile map.js --target node --format cjs --no-bundle && bun build src/clone.ts --outfile clone.js --target node --format cjs --no-bundle",
+    "build": "bun build src/to-path.ts --outfile to-path.js --target node --format cjs --no-bundle && bun build src/is-index.ts --outfile is-index.js --target node --format cjs --no-bundle && bun build src/set-with.ts --outfile set-with.js --target node --format cjs --no-bundle && bun build src/get.ts --outfile get.js --target node --format cjs --no-bundle && bun build src/setImmutable.ts --outfile setImmutable.js --target node --format cjs --no-bundle && bun build src/map.ts --outfile map.js --target node --format cjs --no-bundle && bun build src/clone.ts --outfile clone.js --target node --format cjs --no-bundle",
     "test": "bun node_modules/.bin/mocha",
     "test:types": "tsc --noEmit"
   },
@@ -32,8 +36,7 @@
   "author": "Jonathan Delgado <hi@jon.soy>",
   "license": "MIT",
   "dependencies": {
-    "decompose.js": "^1.0.5",
-    "lodash.setwith": "^4.3.2"
+    "decompose.js": "^1.0.5"
   },
   "devDependencies": {
     "debug": "^2.6.0",
